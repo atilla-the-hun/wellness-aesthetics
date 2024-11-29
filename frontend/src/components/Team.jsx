@@ -81,7 +81,7 @@ const Team = () => {
                                             e.target.src = assets.doc1; // Fallback image
                                         }}
                                     />
-                                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-4">
+                                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-4 flex items-center justify-center">
                                         <h3 className="text-lg font-semibold">{member.title}</h3>
                                     </div>
                                 </div>
@@ -107,7 +107,7 @@ const Team = () => {
                                             e.target.src = assets.doc1; // Fallback image
                                         }}
                                     />
-                                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-4">
+                                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-4 flex items-center justify-center">
                                         <h3 className="text-lg font-semibold">{member.title}</h3>
                                     </div>
                                 </div>

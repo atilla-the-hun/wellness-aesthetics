@@ -36,6 +36,11 @@ const Navbar = () => {
           <li className='py-1 text-white'>CONTACT</li>
           <hr className='border-none outline-none h-0.5 bg-primary w-3/5 m-auto hidden' />
         </NavLink>
+        {/* ADMIN Link */}
+        <a href="http://localhost:5174" target="_blank" rel="noopener noreferrer">
+          <li className='py-1 text-white'>ADMIN</li>
+          <hr className='border-none outline-none h-0.5 bg-primary w-3/5 m-auto hidden' />
+        </a>
       </ul>
 
       <div className='flex items-center gap-4 '>
@@ -67,6 +72,10 @@ const Navbar = () => {
             <NavLink onClick={() => setShowMenu(false)} to='/treatments' ><p className='px-4 py-2 rounded full inline-block'>ALL TREATMENTS</p></NavLink>
             <NavLink onClick={() => setShowMenu(false)} to='/about' ><p className='px-4 py-2 rounded full inline-block'>ABOUT</p></NavLink>
             <NavLink onClick={() => setShowMenu(false)} to='/contact' ><p className='px-4 py-2 rounded full inline-block'>CONTACT</p></NavLink>
+            {/* ADMIN Link */}
+            <a href="http://localhost:5174" target="_blank" rel="noopener noreferrer">
+              <p className='px-4 py-2 rounded full inline-block'>ADMIN</p>
+            </a>
           </ul>
         </div>
       </div>
