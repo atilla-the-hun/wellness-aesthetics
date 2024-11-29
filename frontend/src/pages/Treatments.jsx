@@ -53,7 +53,7 @@ const Treatments = () => {
   };
 
   return (
-    <div className="flex flex-col items-center gap-4 my-16 text-[#262626] md:mx-10 overflow-x-hidden">
+    <div className="flex flex-col items-center gap-4 my-16 text-white md:mx-10 overflow-x-hidden">
       <h1 className="text-3xl font-medium">Browse Treatments</h1>
       <p className="sm:w-1/2 text-center text-sm">
         Simply browse through our extensive list of trusted treatments.
@@ -69,7 +69,7 @@ const Treatments = () => {
         </button>
         <div
           style={{ marginTop: '20px' }}
-          className={`flex-col gap-4 text-sm text-gray-600 ${
+          className={`flex-col gap-4 text-sm text-white ${
             showFilter ? 'flex' : 'hidden sm:flex'
           }`}
         >
@@ -112,14 +112,6 @@ const Treatments = () => {
             }`}
           >
             Waxing
-          </p>
-          <p
-            onClick={() => handleButtonClick('Hair', '/treatments/Hair')}
-            className={`w-[94vw] sm:w-[180px] pl-3 py-1.5 pr-16 border border-gray-300 rounded transition-all cursor-pointer ${
-              activeButton === 'Hair' ? 'bg-[#E2E5FF] text-black' : ''
-            }`}
-          >
-            Hair
           </p>
         </div>
         <div className="w-full grid grid-cols-1 gap-4 pt-5 gap-y-6 px-3 sm:px-0">

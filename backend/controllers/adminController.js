@@ -2,8 +2,6 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import appointmentModel from "../models/appointmentModel.js";
 import treatmentModel from "../models/treatmentModel.js";
-import bcrypt from "bcrypt";
-import validator from "validator";
 import userModel from "../models/userModel.js";
 
 // Function to check if practitioner is available
@@ -110,37 +108,32 @@ const loginAdmin = async (req, res) => {
 // API for admin to register a user
 const adminRegisterUser = async (req, res) => {
     try {
-        const { name, email, password, phone } = req.body;
+        const { name, phone } = req.body;
 
-        if (!name || !email || !password || !phone) {
+        if (!name || !phone) {
             return res.json({ success: false, message: 'Missing Details' });
         }
 
-        if (!validator.isEmail(email)) {
-            return res.json({ success: false, message: "Please enter a valid email" });
+        if (!phone.trim()) {
+            return res.json({ success: false, message: "Please enter a phone number" });
         }
 
-        if (password.length < 8) {
-            return res.json({ success: false, message: "Please enter a strong password" });
-        }
+        // Convert to lowercase for case-insensitive comparison
+        const lowerPhone = phone.toLowerCase();
+        const lowerName = name.toLowerCase();
 
-        if (!validator.isMobilePhone(phone, 'any')) {
-            return res.json({ success: false, message: "Please enter a valid phone number" });
-        }
+        // Check if user exists with this phone number
+        const existingUser = await userModel.findOne({ 
+            phone: { $regex: new RegExp('^' + lowerPhone + '$', 'i') } 
+        });
 
-        const existingUser = await userModel.findOne({ email });
         if (existingUser) {
-            return res.json({ success: false, message: "User already exists" });
+            return res.json({ success: false, message: "User already exists with this phone number" });
         }
-
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
 
         const userData = {
-            name,
-            email,
-            password: hashedPassword,
-            phone,
+            name: lowerName,
+            phone: lowerPhone
         };
 
         const newUser = new userModel(userData);
@@ -157,11 +150,19 @@ const adminRegisterUser = async (req, res) => {
 // API for admin to login a user
 const adminLoginUser = async (req, res) => {
     try {
-        const { email } = req.body;
-        const user = await userModel.findOne({ email });
+        const { phone } = req.body;
+        
+        if (!phone) {
+            return res.json({ success: false, message: "Phone number is required" });
+        }
+
+        // Case-insensitive phone number search
+        const user = await userModel.findOne({ 
+            phone: { $regex: new RegExp('^' + phone.toLowerCase() + '$', 'i') } 
+        });
 
         if (!user) {
-            return res.json({ success: false, message: "User does not exist" });
+            return res.json({ success: false, message: "User not found with this phone number" });
         }
 
         res.json({ success: true, userId: user._id });

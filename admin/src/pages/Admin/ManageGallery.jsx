@@ -39,11 +39,11 @@ const ManageGallery = () => {
 
     // Validate file size and type
     const validateFile = (file) => {
-        const maxSize = 5 * 1024 * 1024; // 5MB
+        const maxSize = 10 * 1024 * 1024; // 10MB
         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
         if (!file) return { valid: false, error: 'Please select an image' };
-        if (file.size > maxSize) return { valid: false, error: 'File size must be less than 5MB' };
+        if (file.size > maxSize) return { valid: false, error: 'File size must be less than 10MB' };
         if (!allowedTypes.includes(file.type)) return { valid: false, error: 'Only JPG, PNG, GIF, and WebP images are allowed' };
 
         return { valid: true };
@@ -72,25 +72,15 @@ const ManageGallery = () => {
             formData.append('altText', newImage.altText.trim());
             formData.append('image', newImage.file);
 
-            console.log('Uploading image to:', `${backendUrl}/api/gallery/admin/add`);
-            console.log('Auth token:', aToken);
-            console.log('Form data:', {
-                title: newImage.title,
-                altText: newImage.altText,
-                file: newImage.file.name
-            });
-
-            const headers = {
-                'aToken': aToken,
-                'Content-Type': 'multipart/form-data'
-            };
-
-            console.log('Request headers:', headers);
-
             const { data } = await axios.post(
                 `${backendUrl}/api/gallery/admin/add`,
                 formData,
-                { headers }
+                { 
+                    headers: {
+                        'aToken': aToken,
+                        'Content-Type': 'multipart/form-data'
+                    }
+                }
             );
 
             if (data.success) {
@@ -105,16 +95,7 @@ const ManageGallery = () => {
             }
         } catch (error) {
             console.error('Error adding image:', error);
-            if (error.response) {
-                console.error('Error response:', error.response.data);
-                toast.error(error.response.data.message || 'Failed to upload image');
-            } else if (error.request) {
-                console.error('No response received:', error.request);
-                toast.error('No response from server');
-            } else {
-                console.error('Error setting up request:', error.message);
-                toast.error('Error preparing upload');
-            }
+            toast.error(error.response?.data?.message || 'Failed to add image');
         } finally {
             setLoading(false);
         }
@@ -167,12 +148,7 @@ const ManageGallery = () => {
             }
         } catch (error) {
             console.error('Error updating image:', error);
-            if (error.response) {
-                console.error('Error response:', error.response.data);
-                toast.error(error.response.data.message || 'Failed to update image');
-            } else {
-                toast.error('Failed to update image');
-            }
+            toast.error(error.response?.data?.message || 'Failed to update image');
         } finally {
             setLoading(false);
         }
@@ -198,12 +174,7 @@ const ManageGallery = () => {
             }
         } catch (error) {
             console.error('Error deleting image:', error);
-            if (error.response) {
-                console.error('Error response:', error.response.data);
-                toast.error(error.response.data.message || 'Failed to delete image');
-            } else {
-                toast.error('Failed to delete image');
-            }
+            toast.error(error.response?.data?.message || 'Failed to delete image');
         }
     };
 
@@ -232,12 +203,7 @@ const ManageGallery = () => {
             }
         } catch (error) {
             console.error('Error reordering images:', error);
-            if (error.response) {
-                console.error('Error response:', error.response.data);
-                toast.error(error.response.data.message || 'Failed to save new order');
-            } else {
-                toast.error('Failed to save new order');
-            }
+            toast.error(error.response?.data?.message || 'Failed to save new order');
             fetchImages(); // Revert to original order
         }
     };
@@ -271,7 +237,7 @@ const ManageGallery = () => {
                         />
                     </div>
                     <div>
-                        <label className="block mb-1">Image (Max 5MB)</label>
+                        <label className="block mb-1">Image (Max 10MB)</label>
                         <input
                             type="file"
                             onChange={(e) => setNewImage({ ...newImage, file: e.target.files[0] })}

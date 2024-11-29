@@ -104,7 +104,6 @@ const AddTreatment = () => {
                                 <option value="Facial">Facial Care</option>
                                 <option value="Massage">Massage</option>
                                 <option value="Waxing">Waxing</option>
-                                <option value="Hair">Hair</option>
                             </select>
                         </div>
                     </div>

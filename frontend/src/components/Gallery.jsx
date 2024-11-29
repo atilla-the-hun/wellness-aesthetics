@@ -59,8 +59,8 @@ const Gallery = () => {
     return (
         <section className="w-full">
             <div className="max-w-7xl mx-auto">
-                <h2 className="text-3xl font-medium text-center mb-2 text-[#262626]">Treatment Gallery</h2>
-                <p className='text-center text-sm text-[#262626] mb-8'>Our treatments in progress.</p>
+                <h2 className="text-3xl font-medium text-center mb-2 text-white">Treatment Gallery</h2>
+                <p className='text-center text-sm text-white mb-8'>Our treatments in progress.</p>
                 <div className='flex flex-col items-center gap-8'>
                     {/* First Row */}
                     <div className='grid grid-cols-1 md:grid-cols-3 gap-6 w-full'>

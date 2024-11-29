@@ -1,14 +1,20 @@
-import React, { useContext, useEffect } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { AdminContext } from '../../context/AdminContext'
 import { useNavigate } from 'react-router-dom'
+import SpecialityMenu from '../../components/SpecialityMenu'
 
 const TreatmentsList = () => {
   const navigate = useNavigate()
   const { treatments, changeAvailability, getAllTreatments, deleteTreatment } = useContext(AdminContext)
+  const [selectedSpeciality, setSelectedSpeciality] = useState(null)
 
   useEffect(() => {
     getAllTreatments()
   }, [])
+
+  const filteredTreatments = selectedSpeciality
+    ? treatments.filter(treatment => treatment.speciality === selectedSpeciality)
+    : treatments
 
   if (!treatments.length) {
     return (
@@ -20,9 +26,26 @@ const TreatmentsList = () => {
 
   return (
     <div className='p-5 h-[calc(100vh-64px)] overflow-y-auto'>
-      <h1 className='text-lg font-medium mb-5'>All Treatments</h1>
+      <div className='flex justify-between items-center mb-5'>
+        <h1 className='text-lg font-medium'>All Treatments</h1>
+        <button 
+          onClick={() => navigate('/admin/add-treatment')}
+          className='bg-primary text-white px-4 py-2 rounded hover:bg-primary/90 transition-all duration-300'
+        >
+          Add Treatment
+        </button>
+      </div>
+
+      {/* Speciality Menu */}
+      <div className='mb-6 bg-gray-50 rounded-xl p-4'>
+        <SpecialityMenu 
+          onSpecialitySelect={setSelectedSpeciality}
+          selectedSpeciality={selectedSpeciality}
+        />
+      </div>
+
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
-        {treatments.map((item, index) => (
+        {filteredTreatments.map((item, index) => (
           <div 
             className='border border-[#C9D8FF] rounded-xl overflow-hidden cursor-pointer group bg-white' 
             key={index}
@@ -61,6 +84,12 @@ const TreatmentsList = () => {
           </div>
         ))}
       </div>
+
+      {filteredTreatments.length === 0 && (
+        <div className='text-center text-gray-500 mt-8'>
+          No treatments found for this category
+        </div>
+      )}
     </div>
   )
 }

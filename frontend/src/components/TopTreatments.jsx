@@ -17,8 +17,8 @@ const TopTreatments = () => {
     return (
         <div className='flex flex-col items-center gap-4 my-16 text-[#262626] md:mx-10'>
             <div className='mt-[5px] md:mt-[10px]'></div> {/* Empty space above on mobile */}
-            <h1 className='text-3xl font-medium'>Top Treatments to Book</h1>
-            <p className='sm:w-1/3 text-center text-sm'>Our top featured treatments.</p>
+            <h1 className='text-3xl font-medium text-white'>Top Treatments to Book</h1>
+            <p className='sm:w-1/3 text-center text-sm text-white'>Our top featured treatments.</p>
             <div className='w-full grid grid-cols-1 gap-4 pt-5 gap-y-6 px-3 sm:px-0'>
                 {treatments.slice(0, 3).map((item, index) => (
                     <div 

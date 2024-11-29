@@ -57,10 +57,10 @@ const Team = () => {
     const secondRow = displayMembers.slice(3, 6);
 
     return (
-        <section className="py-16 bg-white">
+        <section className="py-16 bg-black">
             <div className="container mx-auto px-4">
-                <h2 className="text-3xl font-medium text-center mb-2">Our Team</h2>
-                <p className='text-center text-sm text-[#262626] mb-8'>Meet our friendly, experienced team.</p>
+                <h2 className="text-3xl font-medium text-center mb-2 text-white">Our Team</h2>
+                <p className='text-center text-sm text-white mb-8'>Meet our friendly, experienced team.</p>
                 
                 <div className='flex flex-col items-center gap-8'>
                     {/* First Row */}
@@ -72,7 +72,7 @@ const Team = () => {
                             >
                                 <div className="relative overflow-hidden rounded-lg shadow-lg">
                                     <img
-                                        className='w-full h-auto rounded-lg transform hover:scale-105 transition-transform duration-300'
+                                        className='w-full h-auto rounded-lg transform hover:scale-105 transition-transform duration-300 text-white'
                                         src={member.imageUrl}
                                         alt={member.altText}
                                         onError={(e) => {
@@ -98,7 +98,7 @@ const Team = () => {
                             >
                                 <div className="relative overflow-hidden rounded-lg shadow-lg">
                                     <img
-                                        className='w-full h-auto rounded-lg transform hover:scale-105 transition-transform duration-300'
+                                        className='w-full h-auto rounded-lg transform hover:scale-105 transition-transform duration-300 text-white'
                                         src={member.imageUrl}
                                         alt={member.altText}
                                         onError={(e) => {

@@ -1,8 +1,6 @@
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
-import validator from "validator";
-import mongoose from "mongoose";
 import userModel from "../models/userModel.js";
+import mongoose from "mongoose";
 import treatmentModel from "../models/treatmentModel.js";
 import appointmentModel from "../models/appointmentModel.js";
 import { v2 as cloudinary } from 'cloudinary';
@@ -42,99 +40,28 @@ const generatePayFastSignature = (data, passPhrase = null) => {
     let pfOutput = '';
     for (let key in data) {
         if(data.hasOwnProperty(key)) {
-            if (data[key] !== '') {
-                pfOutput +=`${key}=${encodeURIComponent(data[key].trim()).replace(/%20/g, "+")}&`
+            if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
+                // Safely convert value to string and trim
+                const value = String(data[key]).trim();
+                pfOutput +=`${key}=${encodeURIComponent(value).replace(/%20/g, "+")}&`
             }
         }
     }
 
     // Remove last & from string
     let getString = pfOutput.slice(0, -1);
-    if (passPhrase !== null) {
-        getString +=`&passphrase=${encodeURIComponent(passPhrase.trim()).replace(/%20/g, "+")}`;
+    if (passPhrase !== null && passPhrase !== undefined) {
+        getString +=`&passphrase=${encodeURIComponent(String(passPhrase).trim()).replace(/%20/g, "+")}`;
     }
 
     return crypto.createHash('md5').update(getString).digest('hex');
 };
 
-// Function to check PayFast transaction status
-const checkPayFastTransactionStatus = async (pfPaymentId) => {
-    try {
-        // For sandbox testing, always return success since we can't query sandbox transactions
-        if (process.env.PAYFAST_SANDBOX === 'true') {
-            console.log('Sandbox mode: Assuming payment success');
-            return {
-                status: 'COMPLETE',
-                message: 'Sandbox payment successful'
-            };
-        }
-
-        // For production
-        const queryData = {
-            merchant_id: process.env.PAYFAST_MERCHANT_ID,
-            merchant_key: process.env.PAYFAST_MERCHANT_KEY,
-            pf_payment_id: pfPaymentId,
-            timestamp: new Date().toISOString()
-        };
-
-        const signature = generatePayFastSignature(queryData, process.env.PAYFAST_PASSPHRASE);
-        queryData.signature = signature;
-
-        const queryString = Object.entries(queryData)
-            .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-            .join('&');
-
-        const response = await fetch(`${PAYFAST_API}/eng/query/validate?${queryString}`);
-        const text = await response.text();
-
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            console.log('PayFast Response:', text);
-            // If we're in sandbox mode or can't parse the response, assume success
-            return {
-                status: 'COMPLETE',
-                message: 'Payment successful'
-            };
-        }
-    } catch (error) {
-        console.error('Error checking PayFast transaction:', error);
-        // If we're in sandbox mode, assume success
-        if (process.env.PAYFAST_SANDBOX === 'true') {
-            return {
-                status: 'COMPLETE',
-                message: 'Sandbox payment successful'
-            };
-        }
-        return null;
-    }
-};
-
-// Function to update practitioner bookings
-const updatePractitionerBookings = async (docId, practitioner, slotDate, slotTime) => {
-    try {
-        const treatment = await treatmentModel.findById(docId);
-        if (!treatment.practitioner_bookings) {
-            treatment.practitioner_bookings = {};
-        }
-        if (!treatment.practitioner_bookings[practitioner]) {
-            treatment.practitioner_bookings[practitioner] = {};
-        }
-        if (!treatment.practitioner_bookings[practitioner][slotDate]) {
-            treatment.practitioner_bookings[practitioner][slotDate] = [];
-        }
-        
-        treatment.practitioner_bookings[practitioner][slotDate].push(slotTime);
-        await treatment.save();
-    } catch (error) {
-        console.error('Error updating practitioner bookings:', error);
-        throw new Error('Failed to update practitioner bookings');
-    }
-};
-
 // Function to check if practitioner is available
 const isPractitionerAvailable = async (practitioner, slotDate, startTime, duration) => {
     try {
+        console.log('Checking availability for:', { practitioner, slotDate, startTime, duration });
+
         // Convert start time to minutes since midnight for easier comparison
         const [startHour, startMinute] = startTime.split(':').map(Number);
         const startTimeInMinutes = startHour * 60 + startMinute;
@@ -147,6 +74,8 @@ const isPractitionerAvailable = async (practitioner, slotDate, startTime, durati
             cancelled: false
         });
 
+        console.log('Existing appointments:', existingAppointments);
+
         // Sort appointments by start time
         existingAppointments.sort((a, b) => {
             const [aHour, aMinute] = a.slotTime.split(':').map(Number);
@@ -158,7 +87,15 @@ const isPractitionerAvailable = async (practitioner, slotDate, startTime, durati
         for (const appointment of existingAppointments) {
             const [bookedHour, bookedMinute] = appointment.slotTime.split(':').map(Number);
             const bookedStartTime = bookedHour * 60 + bookedMinute;
-            const bookedEndTime = bookedStartTime + appointment.duration;
+            const bookedEndTime = bookedStartTime + parseInt(appointment.duration);
+
+            console.log('Checking overlap with appointment:', {
+                appointmentTime: appointment.slotTime,
+                bookedStartTime,
+                bookedEndTime,
+                proposedStartTime: startTimeInMinutes,
+                proposedEndTime: endTimeInMinutes
+            });
 
             // Check if this slot overlaps with the appointment
             if (
@@ -166,20 +103,24 @@ const isPractitionerAvailable = async (practitioner, slotDate, startTime, durati
                 (endTimeInMinutes > bookedStartTime && endTimeInMinutes <= bookedEndTime) ||
                 (startTimeInMinutes <= bookedStartTime && endTimeInMinutes >= bookedEndTime)
             ) {
+                console.log('Slot overlaps with existing appointment');
                 return false;
             }
 
             // Check if there's enough break time after previous appointments
             if (startTimeInMinutes >= bookedEndTime && startTimeInMinutes < bookedEndTime + 15) {
+                console.log('Not enough break time after previous appointment');
                 return false;
             }
 
             // Check if there's enough break time before next appointments
             if (endTimeInMinutes > bookedStartTime - 15 && endTimeInMinutes <= bookedStartTime) {
+                console.log('Not enough break time before next appointment');
                 return false;
             }
         }
 
+        console.log('Slot is available');
         return true;
     } catch (error) {
         console.error('Error checking practitioner availability:', error);
@@ -191,6 +132,7 @@ const isPractitionerAvailable = async (practitioner, slotDate, startTime, durati
 const checkPractitionerAvailability = async (req, res) => {
     try {
         const { practitioner, slotDate, slotTime, duration } = req.body;
+        console.log('Received availability check request:', { practitioner, slotDate, slotTime, duration });
 
         if (!practitioner || !slotDate || !slotTime || !duration) {
             return res.json({ success: false, message: 'Missing required fields' });
@@ -215,32 +157,28 @@ const checkPractitionerAvailability = async (req, res) => {
 // API to register user
 const registerUser = async (req, res) => {
     try {
-        const { name, email, password, phone } = req.body;
+        const { name, phone } = req.body;
 
-        if (!name || !email || !password || !phone) {
+        if (!name || !phone) {
             return res.json({ success: false, message: 'Missing Details' });
         }
 
-        if (!validator.isEmail(email)) {
-            return res.json({ success: false, message: "Please enter a valid email" });
-        }
+        // Convert phone and name to lowercase for case-insensitive comparison
+        const lowerPhone = phone.toLowerCase();
+        const lowerName = name.toLowerCase();
 
-        if (password.length < 8) {
-            return res.json({ success: false, message: "Please enter a strong password" });
-        }
+        // Check if user already exists with this phone number
+        const existingUser = await userModel.findOne({ 
+            phone: { $regex: new RegExp('^' + lowerPhone + '$', 'i') } 
+        });
 
-        if (!validator.isMobilePhone(phone, 'any')) {
-            return res.json({ success: false, message: "Please enter a valid phone number" });
+        if (existingUser) {
+            return res.json({ success: false, message: "User already exists with this phone number" });
         }
-
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
 
         const userData = {
-            name,
-            email,
-            password: hashedPassword,
-            phone,
+            name: lowerName,
+            phone: lowerPhone,
         };
 
         const newUser = new userModel(userData);
@@ -258,21 +196,29 @@ const registerUser = async (req, res) => {
 // API to login user
 const loginUser = async (req, res) => {
     try {
-        const { email, password } = req.body;
-        const user = await userModel.findOne({ email });
+        const { name, phone } = req.body;
+
+        if (!name || !phone) {
+            return res.json({ success: false, message: "Missing Details" });
+        }
+
+        // Convert to lowercase for case-insensitive comparison
+        const lowerPhone = phone.toLowerCase();
+        const lowerName = name.toLowerCase();
+
+        // Find user with case-insensitive matching of both name and phone
+        const user = await userModel.findOne({
+            name: { $regex: new RegExp('^' + lowerName + '$', 'i') },
+            phone: { $regex: new RegExp('^' + lowerPhone + '$', 'i') }
+        });
 
         if (!user) {
-            return res.json({ success: false, message: "User does not exist" });
+            return res.json({ success: false, message: "User not found. Please check your name and phone number" });
         }
 
-        const isMatch = await bcrypt.compare(password, user.password);
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+        res.json({ success: true, token });
 
-        if (isMatch) {
-            const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
-            res.json({ success: true, token });
-        } else {
-            res.json({ success: false, message: "Invalid credentials" });
-        }
     } catch (error) {
         console.log(error);
         res.json({ success: false, message: error.message });
@@ -283,7 +229,7 @@ const loginUser = async (req, res) => {
 const getProfile = async (req, res) => {
     try {
         const { userId } = req.body;
-        const userData = await userModel.findById(userId).select('-password');
+        const userData = await userModel.findById(userId);
         res.json({ success: true, userData });
     } catch (error) {
         console.log(error);
@@ -304,7 +250,15 @@ const updateProfile = async (req, res) => {
         await userModel.findByIdAndUpdate(userId, { name, phone, address: JSON.parse(address), dob, gender });
 
         if (imageFile) {
-            const imageUpload = await cloudinary.uploader.upload(imageFile.path, { resource_type: "image" });
+            // Create a dataURI from the buffer for Cloudinary
+            const dataUri = `data:${imageFile.mimetype};base64,${imageFile.buffer.toString('base64')}`;
+            
+            // Upload to Cloudinary using the dataURI
+            const imageUpload = await cloudinary.uploader.upload(dataUri, { 
+                resource_type: "image",
+                folder: "user_profiles" 
+            });
+            
             const imageURL = imageUpload.secure_url;
             await userModel.findByIdAndUpdate(userId, { image: imageURL });
         }
@@ -325,6 +279,7 @@ const bookAppointment = async (req, res) => {
         session.startTransaction();
 
         const { userId, docId, slotDate, slotTime, paymentType, practitioner, duration, amount } = req.body;
+        console.log('Received booking request:', { userId, docId, slotDate, slotTime, paymentType, practitioner, duration, amount });
         
         if (!paymentType || !['full', 'partial'].includes(paymentType)) {
             throw new Error('Invalid payment type. Must be "full" or "partial"');
@@ -340,7 +295,7 @@ const bookAppointment = async (req, res) => {
             throw new Error('Treatment Not Available');
         }
 
-        // Check practitioner availability across all treatments
+        // Check practitioner availability
         const isPractitionerFree = await isPractitionerAvailable(practitioner, slotDate, slotTime, duration);
         if (!isPractitionerFree) {
             throw new Error('Practitioner is not available for this time slot');
@@ -378,9 +333,6 @@ const bookAppointment = async (req, res) => {
         const newAppointment = new appointmentModel(appointmentData);
         await newAppointment.save({ session });
 
-        // Update practitioner bookings
-        await updatePractitionerBookings(docId, practitioner, slotDate, slotTime);
-
         await session.commitTransaction();
         res.json({ 
             success: true, 
@@ -416,20 +368,6 @@ const cancelAppointment = async (req, res) => {
         }
 
         await appointmentModel.findByIdAndUpdate(appointmentId, { cancelled: true });
-
-        // Remove the booking from practitioner_bookings
-        const treatment = await treatmentModel.findById(appointmentData.docId);
-        if (treatment.practitioner_bookings?.[appointmentData.practitioner]?.[appointmentData.slotDate]) {
-            const bookings = treatment.practitioner_bookings[appointmentData.practitioner][appointmentData.slotDate];
-            const updatedBookings = bookings.filter(time => time !== appointmentData.slotTime);
-            
-            await treatmentModel.findByIdAndUpdate(appointmentData.docId, {
-                $set: {
-                    [`practitioner_bookings.${appointmentData.practitioner}.${appointmentData.slotDate}`]: updatedBookings
-                }
-            });
-        }
-
         res.json({ success: true, message: 'Appointment Cancelled' });
 
     } catch (error) {
@@ -438,7 +376,7 @@ const cancelAppointment = async (req, res) => {
     }
 };
 
-// API to get user appointments for frontend my-appointments page
+// API to get user appointments
 const listAppointment = async (req, res) => {
     try {
         const { userId } = req.body;
@@ -446,88 +384,6 @@ const listAppointment = async (req, res) => {
         res.json({ success: true, appointments });
     } catch (error) {
         console.log(error);
-        res.json({ success: false, message: error.message });
-    }
-};
-
-// API to make payment of appointment using PayPal
-const paymentPayPal = async (req, res) => {
-    try {
-        const { appointmentId, paymentType } = req.body;
-        const { origin } = req.headers;
-
-        const appointmentData = await appointmentModel.findById(appointmentId);
-
-        if (!appointmentData || appointmentData.cancelled) {
-            return res.json({ success: false, message: 'Appointment Cancelled or not found' });
-        }
-
-        // Calculate payment amount based on payment type and current paid amount
-        let paymentAmount;
-        if (paymentType === 'full') {
-            paymentAmount = appointmentData.paymentStatus === 'none' ? 
-                appointmentData.amount : 
-                (appointmentData.amount - appointmentData.paidAmount);
-        } else {
-            paymentAmount = appointmentData.amount / 2;
-        }
-
-        // Convert ZAR amount to USD for PayPal
-        const usdAmount = (paymentAmount * 0.059).toFixed(2);
-
-        // Get PayPal access token
-        const access_token = await getPayPalAccessToken();
-
-        // Create PayPal order
-        const response = await fetch(`${PAYPAL_API}/v2/checkout/orders`, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${access_token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                intent: 'CAPTURE',
-                purchase_units: [{
-                    amount: {
-                        currency_code: 'USD',
-                        value: usdAmount
-                    },
-                    description: `${appointmentData.docData.name} - Booking #${appointmentData.bookingNumber}`,
-                    custom_id: JSON.stringify({
-                        appointmentId: appointmentData._id.toString(),
-                        amount: paymentAmount,
-                        paymentType
-                    })
-                }],
-                application_context: {
-                    brand_name: 'Beauty on the Rocks',
-                    landing_page: 'NO_PREFERENCE',
-                    user_action: 'PAY_NOW',
-                    return_url: `${origin}/verify?success=true&appointmentId=${appointmentData._id}&paypal=true`,
-                    cancel_url: `${origin}/verify?success=false&appointmentId=${appointmentData._id}&paypal=true`
-                }
-            })
-        });
-
-        const data = await response.json();
-        
-        if (data.id) {
-            const approveLink = data.links.find(link => link.rel === 'approve');
-            res.json({ 
-                success: true, 
-                order_id: data.id, 
-                approve_url: approveLink.href
-            });
-        } else {
-            console.error('PayPal Order Error:', data);
-            res.json({ 
-                success: false, 
-                message: data.message || 'Failed to create PayPal order' 
-            });
-        }
-
-    } catch (error) {
-        console.error('PayPal Payment Error:', error);
         res.json({ success: false, message: error.message });
     }
 };
@@ -568,13 +424,13 @@ const paymentPayFast = async (req, res) => {
 
         // Prepare PayFast payment data
         const paymentData = {
-            merchant_id: process.env.PAYFAST_MERCHANT_ID,
-            merchant_key: process.env.PAYFAST_MERCHANT_KEY,
+            merchant_id: process.env.PAYFAST_MERCHANT_ID || '',
+            merchant_key: process.env.PAYFAST_MERCHANT_KEY || '',
             return_url: `${origin}/verify?success=true&appointmentId=${appointmentData._id}&payfast=true&pfPaymentId=${pfPaymentId}`,
             cancel_url: `${origin}/verify?success=false&appointmentId=${appointmentData._id}&payfast=true`,
             notify_url: `${origin}/api/user/payfast-notify`,
-            name_first: appointmentData.userData.name,
-            email_address: appointmentData.userData.email,
+            name_first: appointmentData.userData.name || '',
+            email_address: appointmentData.userData.email || '',
             m_payment_id: pfPaymentId,
             amount: paymentAmount.toFixed(2),
             item_name: `${appointmentData.docData.name} - Booking #${appointmentData.bookingNumber}`,
@@ -585,8 +441,8 @@ const paymentPayFast = async (req, res) => {
             })
         };
 
-        // Generate signature
-        const signature = generatePayFastSignature(paymentData, process.env.PAYFAST_PASSPHRASE);
+        // Generate signature with null check for passphrase
+        const signature = generatePayFastSignature(paymentData, process.env.PAYFAST_PASSPHRASE || null);
         paymentData.signature = signature;
 
         res.json({ 
@@ -597,87 +453,6 @@ const paymentPayFast = async (req, res) => {
 
     } catch (error) {
         console.error('PayFast Payment Error:', error);
-        res.json({ success: false, message: error.message });
-    }
-};
-
-// API to verify PayPal payment
-const verifyPayPal = async (req, res) => {
-    try {
-        const { appointmentId, success, token } = req.body;
-
-        if (success === "true" && token) {
-            // Get PayPal access token
-            const access_token = await getPayPalAccessToken();
-
-            const response = await fetch(`${PAYPAL_API}/v2/checkout/orders/${token}/capture`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${access_token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            const data = await response.json();
-
-            if (data.status === 'COMPLETED') {
-                const customId = data.purchase_units[0].custom_id;
-                const customData = JSON.parse(customId);
-                
-                const appointment = await appointmentModel.findById(appointmentId);
-                if (!appointment) {
-                    throw new Error('Appointment not found');
-                }
-
-                const paymentAmount = parseFloat(customData.amount);
-                const currentPaidAmount = appointment.paidAmount || 0;
-                const newPaidAmount = currentPaidAmount + paymentAmount;
-
-                // Determine new payment status
-                const newPaymentStatus = newPaidAmount >= appointment.amount ? 'full' : 'partial';
-
-                // Update slots_booked only if this is the first payment
-                if (appointment.paymentStatus === 'none') {
-                    const treatmentData = await treatmentModel.findById(appointment.docId);
-                    let slots_booked = treatmentData.slots_booked || {};
-                    if (!slots_booked[appointment.slotDate]) {
-                        slots_booked[appointment.slotDate] = [];
-                    }
-                    slots_booked[appointment.slotDate].push(appointment.slotTime);
-                    await treatmentModel.findByIdAndUpdate(appointment.docId, { slots_booked });
-                }
-
-                // Update appointment with new payment details
-                await appointmentModel.findByIdAndUpdate(
-                    appointmentId, 
-                    {
-                        paymentStatus: newPaymentStatus,
-                        paidAmount: newPaidAmount,
-                        $push: { 
-                            transactionDetails: {
-                                id: data.id,
-                                status: data.status,
-                                amount: paymentAmount,
-                                paymentType: customData.paymentType,
-                                payer: data.payer,
-                                date: new Date()
-                            }
-                        }
-                    }
-                );
-
-                return res.json({ 
-                    success: true, 
-                    message: 'Payment Successful',
-                    paymentStatus: newPaymentStatus
-                });
-            }
-        }
-
-        res.json({ success: false, message: 'Payment Failed' });
-
-    } catch (error) {
-        console.error('PayPal Verification Error:', error);
         res.json({ success: false, message: error.message });
     }
 };
@@ -705,17 +480,6 @@ const verifyPayFast = async (req, res) => {
 
             // Determine new payment status
             const newPaymentStatus = newPaidAmount >= appointment.amount ? 'full' : 'partial';
-
-            // Update slots_booked only if this is the first payment
-            if (appointment.paymentStatus === 'none') {
-                const treatmentData = await treatmentModel.findById(appointment.docId);
-                let slots_booked = treatmentData.slots_booked || {};
-                if (!slots_booked[appointment.slotDate]) {
-                    slots_booked[appointment.slotDate] = [];
-                }
-                slots_booked[appointment.slotDate].push(appointment.slotTime);
-                await treatmentModel.findByIdAndUpdate(appointment.docId, { slots_booked });
-            }
 
             // Update appointment with new payment details
             await appointmentModel.findByIdAndUpdate(
@@ -759,9 +523,7 @@ export {
     bookAppointment,
     listAppointment,
     cancelAppointment,
-    paymentPayPal,
     paymentPayFast,
-    verifyPayPal,
     verifyPayFast,
     checkPractitionerAvailability
 };

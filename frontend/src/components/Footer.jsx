@@ -9,12 +9,12 @@ const Footer = () => {
 
         <div>
           <img className='mb-5 w-40' src={assets.logo} alt="" />
-          <p className='w-full md:w-2/3 text-gray-600 leading-6'>Wellness & Aesthetics is your coastal sanctuary for beauty and relaxation on Southbroom's breathtaking shores. Our skilled team is dedicated to enhancing your natural beauty with personalized care in a serene, oceanfront setting.</p>
+          <p className='w-full md:w-2/3 text-white leading-6'>Wellness & Aesthetics is your coastal sanctuary for beauty and relaxation on Southbroom's breathtaking shores. Our skilled team is dedicated to enhancing your natural beauty with personalized care in a serene, oceanfront setting.</p>
         </div>
 
         <div>
-          <p className='text-xl font-medium mb-5'>COMPANY</p>
-          <ul className='flex flex-col gap-2 text-gray-600'>
+          <p className='text-xl font-medium mb-5 text-white'>COMPANY</p>
+          <ul className='flex flex-col gap-2 text-white'>
           <NavLink to='/' >
             <li>Home</li>
           </NavLink>
@@ -31,8 +31,8 @@ const Footer = () => {
         </div>
 
         <div>
-  <p className="text-xl font-medium mb-5">GET IN TOUCH</p>
-  <ul className="flex flex-col gap-2 text-gray-600">
+  <p className="text-xl font-medium mb-5 text-white">GET IN TOUCH</p>
+  <ul className="flex flex-col gap-2 text-white">
     <li>
       <a href="tel:+41796729120">+41 79 672 91 20</a>
     </li>
@@ -47,7 +47,7 @@ const Footer = () => {
 
       <div>
         <hr />
-        <p className='py-5 text-sm text-center'>Copyright 2024 Wellness & Aesthetics - All Rights Reserved.</p>
+        <p className='py-5 text-sm text-center text-white'>Copyright 2024 Wellness & Aesthetics - All Rights Reserved.</p>
       </div>
 
     </div>

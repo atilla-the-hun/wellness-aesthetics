@@ -3,7 +3,7 @@ import header_img from './ocean-7.png'
 import group_profiles from './group_profiles.png'
 import profile_pic from './profile_pic.png'
 import contact_image from './beauty_salon.jpg'
-import about_image from './beauticians.png'
+import about_image from './beauticians-3.jpg'
 import logo from './logo.png'
 import dropdown_icon from './dropdown_icon.svg'
 import menu_icon from './menu_icon.svg'
@@ -34,7 +34,6 @@ import Dermatologist from './massage.png'
 import Gastroenterologist from './Gastroenterologist.svg'
 import General_physician from './nail-polish.png'
 import Gynecologist from './facial.png'
-import Neurologist from './hair.png'
 import Pediatricians from './wax.png'
 import Foot from './foot_fetish.jpg'
 import Braids from './normal_braids.jpg'
@@ -43,6 +42,7 @@ import Aromatherapy from './aromatherapy_full_body.jpg'
 import Soft_Gel_Tips from './soft_gel_tips.jpg'
 import Peel from './regima_initiation_peel.jpg'
 import Soak from './soak_off.jpg'
+import Tropical from './tropical_beach.jpg'
 
 
 export const assets = {
@@ -69,7 +69,8 @@ export const assets = {
     Aromatherapy,
     Soft_Gel_Tips,
     Peel,
-    Soak
+    Soak,
+    Tropical
 }
 
 export const specialityData = [
@@ -88,11 +89,7 @@ export const specialityData = [
     {
         speciality: 'Waxing',
         image: Pediatricians
-    },
-    {
-        speciality: 'Hair',
-        image: Neurologist
-    },
+    }
 ]
 
 export const treatments = [

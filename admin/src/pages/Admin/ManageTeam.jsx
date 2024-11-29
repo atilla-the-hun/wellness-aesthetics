@@ -39,11 +39,11 @@ const ManageTeam = () => {
 
     // Validate file size and type
     const validateFile = (file) => {
-        const maxSize = 5 * 1024 * 1024; // 5MB
+        const maxSize = 10 * 1024 * 1024; // 10MB
         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
         if (!file) return { valid: false, error: 'Please select an image' };
-        if (file.size > maxSize) return { valid: false, error: 'File size must be less than 5MB' };
+        if (file.size > maxSize) return { valid: false, error: 'File size must be less than 10MB' };
         if (!allowedTypes.includes(file.type)) return { valid: false, error: 'Only JPG, PNG, GIF, and WebP images are allowed' };
 
         return { valid: true };
@@ -72,25 +72,15 @@ const ManageTeam = () => {
             formData.append('altText', newMember.altText.trim());
             formData.append('image', newMember.file);
 
-            console.log('Uploading team member to:', `${backendUrl}/api/team/admin/add`);
-            console.log('Auth token:', aToken);
-            console.log('Form data:', {
-                title: newMember.title,
-                altText: newMember.altText,
-                file: newMember.file.name
-            });
-
-            const headers = {
-                'aToken': aToken,
-                'Content-Type': 'multipart/form-data'
-            };
-
-            console.log('Request headers:', headers);
-
             const { data } = await axios.post(
                 `${backendUrl}/api/team/admin/add`,
                 formData,
-                { headers }
+                { 
+                    headers: {
+                        'aToken': aToken,
+                        'Content-Type': 'multipart/form-data'
+                    }
+                }
             );
 
             if (data.success) {
@@ -105,16 +95,7 @@ const ManageTeam = () => {
             }
         } catch (error) {
             console.error('Error adding team member:', error);
-            if (error.response) {
-                console.error('Error response:', error.response.data);
-                toast.error(error.response.data.message || 'Failed to upload team member');
-            } else if (error.request) {
-                console.error('No response received:', error.request);
-                toast.error('No response from server');
-            } else {
-                console.error('Error setting up request:', error.message);
-                toast.error('Error preparing upload');
-            }
+            toast.error(error.response?.data?.message || 'Failed to add team member');
         } finally {
             setLoading(false);
         }
@@ -167,12 +148,7 @@ const ManageTeam = () => {
             }
         } catch (error) {
             console.error('Error updating team member:', error);
-            if (error.response) {
-                console.error('Error response:', error.response.data);
-                toast.error(error.response.data.message || 'Failed to update team member');
-            } else {
-                toast.error('Failed to update team member');
-            }
+            toast.error(error.response?.data?.message || 'Failed to update team member');
         } finally {
             setLoading(false);
         }
@@ -198,12 +174,7 @@ const ManageTeam = () => {
             }
         } catch (error) {
             console.error('Error deleting team member:', error);
-            if (error.response) {
-                console.error('Error response:', error.response.data);
-                toast.error(error.response.data.message || 'Failed to delete team member');
-            } else {
-                toast.error('Failed to delete team member');
-            }
+            toast.error(error.response?.data?.message || 'Failed to delete team member');
         }
     };
 
@@ -232,12 +203,7 @@ const ManageTeam = () => {
             }
         } catch (error) {
             console.error('Error reordering team members:', error);
-            if (error.response) {
-                console.error('Error response:', error.response.data);
-                toast.error(error.response.data.message || 'Failed to save new order');
-            } else {
-                toast.error('Failed to save new order');
-            }
+            toast.error(error.response?.data?.message || 'Failed to save new order');
             fetchMembers(); // Revert to original order
         }
     };
@@ -271,7 +237,7 @@ const ManageTeam = () => {
                         />
                     </div>
                     <div>
-                        <label className="block mb-1">Photo (Max 5MB)</label>
+                        <label className="block mb-1">Photo (Max 10MB)</label>
                         <input
                             type="file"
                             onChange={(e) => setNewMember({ ...newMember, file: e.target.files[0] })}
@@ -321,7 +287,6 @@ const ManageTeam = () => {
                                                     alt={member.altText}
                                                     className="w-24 h-24 object-cover rounded"
                                                 />
-                        
                                                 <div className="flex-1">
                                                     <h3 className="font-semibold">{member.title}</h3>
                                                     <p className="text-gray-600">{member.altText}</p>
@@ -378,20 +343,20 @@ const ManageTeam = () => {
                                             ) : (
                                                 <div className="mt-4 space-y-2">
                                                     <div>
-                                                    <button
-                                                        onClick={() => setEditingMember(member)}
-                                                        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                                                    >
-                                                        Edit
-                                                    </button>
+                                                        <button
+                                                            onClick={() => setEditingMember(member)}
+                                                            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                                                        >
+                                                            Edit
+                                                        </button>
                                                     </div>
                                                     <div>
-                                                    <button
-                                                        onClick={() => handleDeleteMember(member._id)}
-                                                        className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                                                    >
-                                                        Delete
-                                                    </button>
+                                                        <button
+                                                            onClick={() => handleDeleteMember(member._id)}
+                                                            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                                                        >
+                                                            Delete
+                                                        </button>
                                                     </div>
                                                 </div>
                                             )}

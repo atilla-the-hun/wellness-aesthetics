@@ -53,6 +53,7 @@ const Appointment = () => {
     const checkPractitionerAvailability = async (date, time, duration) => {
         try {
             const slotDate = formatDate(date);
+            console.log('Checking availability for:', { slotDate, time, duration, practitioner: selectedPractitioner });
 
             const { data } = await axios.post(backendUrl + '/api/user/check-practitioner-availability', {
                 practitioner: selectedPractitioner,
@@ -61,7 +62,8 @@ const Appointment = () => {
                 duration
             })
 
-            return data.available
+            console.log('Availability response:', data);
+            return data.success && data.available;
         } catch (error) {
             console.error('Error checking practitioner availability:', error)
             return false
@@ -173,14 +175,19 @@ const Appointment = () => {
         setIsPaymentLoading(true)
 
         const date = docSlots[slotIndex].datetime
-
-        let day = date.getDate()
-        let month = date.getMonth() + 1
-        let year = date.getFullYear()
-
-        const slotDate = day + "_" + month + "_" + year
+        const slotDate = formatDate(date);
 
         try {
+            console.log('Initiating booking with:', {
+                docId,
+                slotDate,
+                slotTime,
+                duration: selectedDuration,
+                amount: selectedPrice,
+                paymentType,
+                practitioner: selectedPractitioner
+            });
+
             const { data } = await axios.post(backendUrl + '/api/user/book-appointment', 
                 { 
                     docId, 
@@ -205,7 +212,7 @@ const Appointment = () => {
         } catch (error) {
             setIsPaymentLoading(false)
             console.log(error)
-            toast.error(error.message)
+            toast.error(error.response?.data?.message || error.message)
         }
     }
 
@@ -285,7 +292,7 @@ const Appointment = () => {
             {/* Duration Selection */}
             {docInfo.time_slots && docInfo.time_slots.length > 0 && (
                 <div className='mt-6'>
-                    <p className='mb-3 font-medium'>Select Treatment Duration:</p>
+                    <p className='mb-3 font-medium text-white'>Select Treatment Duration:</p>
                     <div className='flex flex-wrap gap-4'>
                         {docInfo.time_slots.map((slot) => (
                             <button
@@ -305,7 +312,7 @@ const Appointment = () => {
             )}
 
             {/* Title for Date Picker */}
-            <h2 className='mt-4 text-lg font-semibold'>Click below to select the day</h2>
+            <h2 className='mt-4 text-lg font-semibold text-white'>Click below to select the day</h2>
 
             {/* Date Picker for selecting booking date */}
             <div className='mt-4'>
@@ -320,7 +327,7 @@ const Appointment = () => {
 
             {/* Practitioner Selection */}
             <div className='mt-4'>
-                <label className='block mb-2'>Select Practitioner:</label>
+                <label className='block mb-2 text-white'>Select Practitioner:</label>
                 <select 
                     value={selectedPractitioner} 
                     onChange={(e) => handlePractitionerChange(e.target.value)} 
@@ -328,14 +335,17 @@ const Appointment = () => {
                 >
                     <option value="Maria">Maria</option>
                     <option value="Thandi">Thandi</option>
+                    <option value="Nompumelelo">Nompumelelo</option>
+                    <option value="Mandy">Mandy</option>
+                    <option value="Zsuzsanna">Zsuzsanna</option>
                 </select>
             </div>
 
             {/* Booking slots */}
-            <div className='sm:ml-72 sm:pl-4 mt-8 font-medium text-[#565656]'>
+            <div className='sm:ml-72 sm:pl-4 mt-8 font-medium text-white'>
                 <p>Available Time Slots</p>
                 {isLoading ? (
-                    <p className="mt-4 text-center text-gray-500">Loading available slots...</p>
+                    <p className="mt-4 text-center text-white">Loading available slots...</p>
                 ) : (
                     <div className='grid grid-cols-4 sm:grid-cols-4 gap-6 mt-4'>
                         {docSlots.length > 0 ? docSlots.map((item, index) => (
@@ -346,15 +356,15 @@ const Appointment = () => {
                                 }}
                                 key={index}
                                 className={`text-sm font-light flex flex-col items-center justify-center px-5 py-2 rounded-lg cursor-pointer ${
-                                    item.time === slotTime ? 'bg-primary text-white' : 'text-[#949494] border border-[#B4B4B4]'
+                                    item.time === slotTime ? 'bg-primary text-white' : 'text-white border border-white'
                                 }`}
                             >
                                 <span>{item.time}</span>
-                                <span className="text-xs mt-1">to</span>
+                                <span className="text-xs mt-1 text-white">to</span>
                                 <span>{item.endTime}</span>
                             </div>
                         )) : (
-                            <p className="col-span-4 text-center text-gray-500">No available slots for this duration</p>
+                            <p className="col-span-4 text-center text-white">No available slots for this duration</p>
                         )}
                     </div>
                 )}

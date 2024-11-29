@@ -62,7 +62,10 @@ const AdminContextProvider = (props) => {
         try {
             const { data } = await axios.post(
                 `${backendUrl}/api/admin/register-user`,
-                userData
+                {
+                    name: userData.name,
+                    phone: userData.phone
+                }
             )
             if (data.success) {
                 toast.success(data.message)
@@ -79,11 +82,11 @@ const AdminContextProvider = (props) => {
     }
 
     // Function to login a user as admin
-    const adminLoginUser = async (email) => {
+    const adminLoginUser = async (phone) => {
         try {
             const { data } = await axios.post(
                 `${backendUrl}/api/admin/login-user`,
-                { email }
+                { phone }
             )
             if (data.success) {
                 return data.userId

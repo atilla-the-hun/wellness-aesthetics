@@ -14,9 +14,7 @@ const ManageAppointments = () => {
     const [isLogin, setIsLogin] = useState(true)
     const [userForm, setUserForm] = useState({
         name: '',
-        email: '',
-        phone: '',
-        password: ''
+        phone: ''
     })
 
     // Booking State
@@ -43,12 +41,22 @@ const ManageAppointments = () => {
 
         try {
             if (isLogin) {
-                const userId = await adminLoginUser(userForm.email)
+                if (!userForm.phone) {
+                    toast.error('Phone number is required')
+                    setIsLoading(false)
+                    return
+                }
+                const userId = await adminLoginUser(userForm.phone)
                 if (userId) {
                     setUserId(userId)
                     toast.success('User logged in successfully')
                 }
             } else {
+                if (!userForm.name || !userForm.phone) {
+                    toast.error('Name and phone number are required')
+                    setIsLoading(false)
+                    return
+                }
                 const userId = await adminRegisterUser(userForm)
                 if (userId) {
                     setUserId(userId)
@@ -201,9 +209,7 @@ const ManageAppointments = () => {
                 setSlotTime('')
                 setUserForm({
                     name: '',
-                    email: '',
-                    phone: '',
-                    password: ''
+                    phone: ''
                 })
                 setIsLogin(true)
                 toast.success('Appointment booked successfully')
@@ -222,51 +228,28 @@ const ManageAppointments = () => {
                     </p>
                     <form onSubmit={handleUserSubmit} className="w-full space-y-4">
                         {!isLogin && (
-                            <>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Name</label>
-                                    <input
-                                        type="text"
-                                        value={userForm.name}
-                                        onChange={(e) => setUserForm(prev => ({ ...prev, name: e.target.value }))}
-                                        className="border border-[#DADADA] rounded w-full p-2 mt-1"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Phone</label>
-                                    <input
-                                        type="tel"
-                                        value={userForm.phone}
-                                        onChange={(e) => setUserForm(prev => ({ ...prev, phone: e.target.value }))}
-                                        className="border border-[#DADADA] rounded w-full p-2 mt-1"
-                                        required
-                                    />
-                                </div>
-                            </>
-                        )}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Email</label>
-                            <input
-                                type="email"
-                                value={userForm.email}
-                                onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
-                                className="border border-[#DADADA] rounded w-full p-2 mt-1"
-                                required
-                            />
-                        </div>
-                        {!isLogin && (
                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Password</label>
+                                <label className="block text-sm font-medium text-gray-700">Name</label>
                                 <input
-                                    type="password"
-                                    value={userForm.password}
-                                    onChange={(e) => setUserForm(prev => ({ ...prev, password: e.target.value }))}
+                                    type="text"
+                                    value={userForm.name}
+                                    onChange={(e) => setUserForm(prev => ({ ...prev, name: e.target.value }))}
                                     className="border border-[#DADADA] rounded w-full p-2 mt-1"
-                                    required
+                                    placeholder="Enter user's name"
                                 />
                             </div>
                         )}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+                            <input
+                                type="tel"
+                                value={userForm.phone}
+                                onChange={(e) => setUserForm(prev => ({ ...prev, phone: e.target.value }))}
+                                className="border border-[#DADADA] rounded w-full p-2 mt-1"
+                                placeholder="Enter phone number"
+                                required
+                            />
+                        </div>
                         <button
                             type="submit"
                             disabled={isLoading}
@@ -276,7 +259,10 @@ const ManageAppointments = () => {
                         </button>
                     </form>
                     <button
-                        onClick={() => setIsLogin(!isLogin)}
+                        onClick={() => {
+                            setIsLogin(!isLogin)
+                            setUserForm({ name: '', phone: '' })
+                        }}
                         className="w-full text-center text-primary hover:underline"
                     >
                         {isLogin ? 'Need to register?' : 'Already have an account?'}
@@ -361,6 +347,9 @@ const ManageAppointments = () => {
                         >
                             <option value="Maria">Maria</option>
                             <option value="Thandi">Thandi</option>
+                            <option value="Nompumelelo">Nompumelelo</option>
+                            <option value="Mandy">Mandy</option>
+                            <option value="Zsuzsanna">Zsuzsanna</option>
                         </select>
                     </div>
 

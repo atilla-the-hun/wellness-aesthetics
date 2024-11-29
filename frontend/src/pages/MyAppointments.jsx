@@ -146,7 +146,7 @@ const MyAppointments = () => {
 
     return (
         <div>
-            <p className='pb-3 mt-12 text-lg font-medium text-gray-600 border-b'>My appointments</p>
+            <p className='pb-3 mt-12 text-lg font-medium text-white border-b'>My appointments</p>
             <div className=''>
                 {appointments.map((item, index) => {
                     const paymentStatusStyle = getPaymentStatus(item)
@@ -154,25 +154,25 @@ const MyAppointments = () => {
                     return (
                         <div key={index} className='grid  gap-4 sm:flex sm:gap-6 py-4 border-b'>
                             
-                            <div className='flex-1 text-sm text-[#5E5E5E]'>
-                                <p className='text-[#262626] text-base font-semibold'>{item.docData.name}</p>
+                            <div className='flex-1 text-sm text-white'>
+                                <p className='text-white text-base font-semibold'>{item.docData.name}</p>
                                 <p>{item.docData.speciality}</p>
-                                <p className='mt-2'><span className='text-sm text-[#3C3C3C] font-medium'>Practitioner:</span> {item.practitioner}</p>
-                                <p className='mt-2'><span className='text-sm text-[#3C3C3C] font-medium'>Booking Number:</span> {item.bookingNumber}</p>
-                                <p className='mt-2'><span className='text-sm text-[#3C3C3C] font-medium'>Date & Time:</span> {slotDateFormat(item.slotDate)} | {item.slotTime} to {endTime} ({item.duration} min)</p>
+                                <p className='mt-2'><span className='text-sm text-white font-medium'>Practitioner:</span> {item.practitioner}</p>
+                                <p className='mt-2'><span className='text-sm text-white font-medium'>Booking Number:</span> {item.bookingNumber}</p>
+                                <p className='mt-2'><span className='text-sm text-white font-medium'>Date & Time:</span> {slotDateFormat(item.slotDate)} | {item.slotTime} to {endTime} ({item.duration} min)</p>
                                 <p className='mt-2'>
-                                    <span className='text-sm text-[#3C3C3C] font-medium'>Total Amount:</span> {currencySymbol}{item.amount}
+                                    <span className='text-sm text-white font-medium'>Total Amount:</span> {currencySymbol}{item.amount}
                                 </p>
                             </div>
-                            <div className='flex flex-col gap-2 justify-end text-sm text-center'>
+                            <div className='flex flex-col gap-2 justify-end text-sm text-center text-white'>
                                 {/* Payment Status Badge */}
                                 <div className={`sm:min-w-48 py-2 border rounded ${paymentStatusStyle.color} ${paymentStatusStyle.bgColor} ${paymentStatusStyle.borderColor}`}>
                                     {paymentStatusStyle.text}
                                 </div>
 
                                 {/* Paid Amount */}
-                                <p className='text-gray-600'>
-                                    Paid: <span className='text-black'>{currencySymbol}{paymentStatusStyle.paidAmount.toFixed(2)}</span>
+                                <p className='text-white'>
+                                    Paid: <span className='text-white'>{currencySymbol}{paymentStatusStyle.paidAmount.toFixed(2)}</span>
                                 </p>
 
                                 {/* Pay Balance Button for Partial Payments */}

@@ -7,8 +7,6 @@ import {
     bookAppointment, 
     listAppointment, 
     cancelAppointment, 
-    paymentPayPal, 
-    verifyPayPal, 
     paymentPayFast, 
     verifyPayFast,
     checkPractitionerAvailability 
@@ -28,10 +26,6 @@ userRouter.post("/cancel-appointment", authUser, cancelAppointment)
 
 // Practitioner availability check
 userRouter.post("/check-practitioner-availability", checkPractitionerAvailability)
-
-// PayPal routes
-userRouter.post("/payment-paypal", authUser, paymentPayPal)
-userRouter.post("/verifyPayPal", authUser, verifyPayPal)
 
 // PayFast routes
 userRouter.post("/payment-payfast", authUser, paymentPayFast)
