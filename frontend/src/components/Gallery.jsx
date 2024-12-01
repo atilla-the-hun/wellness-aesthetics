@@ -61,7 +61,7 @@ const Gallery = () => {
             <div className="max-w-7xl mx-auto">
                 <h2 className="text-3xl font-medium text-center mb-2 text-white">Treatment Gallery</h2>
                 <p className='text-center text-sm text-white mb-8'>Our treatments in progress.</p>
-                <div className='flex flex-col items-center gap-8'>
+                <div className='flex flex-col items-center gap-6'>
                     {/* First Row */}
                     <div className='grid grid-cols-1 md:grid-cols-3 gap-6 w-full'>
                         {firstRow.map((image, index) => (

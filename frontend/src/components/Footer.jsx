@@ -15,33 +15,35 @@ const Footer = () => {
         <div>
           <p className='text-xl font-medium mb-5 text-white'>COMPANY</p>
           <ul className='flex flex-col gap-2 text-white'>
-          <NavLink to='/' >
-            <li>Home</li>
-          </NavLink>
-          <NavLink to='/about' >
-            <li>About</li>
-          </NavLink>
-          <NavLink to='/treatments' >
-            <li>All Treatments</li>
+            <NavLink to='/' >
+              <li>Home</li>
+            </NavLink>
+            <NavLink to='/about' >
+              <li>About</li>
+            </NavLink>
+            <NavLink to='/treatments' >
+              <li>All Treatments</li>
             </NavLink>
             <NavLink to='/contact' >
-            <li>Contact</li>
+              <li>Contact</li>
             </NavLink>
+            <a href="http://localhost:5174" target="_blank" rel="noopener noreferrer">
+              <li>Admin</li>
+            </a>
           </ul>
         </div>
 
         <div>
-  <p className="text-xl font-medium mb-5 text-white">GET IN TOUCH</p>
-  <ul className="flex flex-col gap-2 text-white">
-    <li>
-      <a href="tel:+41796729120">+41 79 672 91 20</a>
-    </li>
-    <li>
-      <a href="mailto:contact@bestcareconsulting.com">contact@bestcareconsulting.com</a>
-    </li>
-  </ul>
-</div>
-
+          <p className="text-xl font-medium mb-5 text-white">GET IN TOUCH</p>
+          <ul className="flex flex-col gap-2 text-white">
+            <li>
+              <a href="tel:0774705140">077 470 5140</a>
+            </li>
+            <li>
+              <a href="mailto:contact@bestcareconsulting.com">contact@bestcareconsulting.com</a>
+            </li>
+          </ul>
+        </div>
 
       </div>
 

@@ -16,7 +16,7 @@ const About = () => {
 
 At Wellness & Aesthetics, we believe in enhancing your natural beauty while providing a relaxing, rejuvenating experience. Whether you’re in need of a soothing facial, a revitalizing massage, a flawless manicure, or a stylish new look, our team of skilled professionals is here to make you feel refreshed, confident, and pampered.
 
-We take pride in creating a welcoming environment where every client feels like family. Our stunning coastal location adds an extra touch of magic to your beauty journey, with the sound of the waves and the cool ocean breeze providing the perfect backdrop to your treatment. Here, you’re not just another appointment; you’re part of the Beauty On Wellness & Aesthetics, where every visit is a step towards self-care and indulgence.
+We take pride in creating a welcoming environment where every client feels like family. Our stunning coastal location adds an extra touch of magic to your beauty journey, with the sound of the waves and the cool ocean breeze providing the perfect backdrop to your treatment. Here, you’re not just another appointment; you’re part of the the family Wellness & Aesthetics, where every visit is a step towards self-care and indulgence.
 
 Join us at Wellness & Aesthetics – where beauty meets the sea, and relaxation is just a breeze away.</p>
           <b className='text-white'>Our Vision</b>

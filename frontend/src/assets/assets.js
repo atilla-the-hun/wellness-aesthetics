@@ -43,6 +43,7 @@ import Soft_Gel_Tips from './soft_gel_tips.jpg'
 import Peel from './regima_initiation_peel.jpg'
 import Soak from './soak_off.jpg'
 import Tropical from './tropical_beach.jpg'
+import hamburger_icon from './down-arrow.png'
 
 
 export const assets = {
@@ -70,7 +71,8 @@ export const assets = {
     Soft_Gel_Tips,
     Peel,
     Soak,
-    Tropical
+    Tropical,
+    hamburger_icon
 }
 
 export const specialityData = [

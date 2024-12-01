@@ -4,8 +4,8 @@ import { specialityData } from '../../../frontend/src/assets/assets'
 const SpecialityMenu = ({ onSpecialitySelect, selectedSpeciality }) => {
     return (
         <div className='flex flex-col items-start gap-4 py-8 text-[#262626]'>
-            <h1 className='text-2xl font-medium'>Filter by Treatment Type</h1>
-            <div className='flex justify-start gap-4 pt-5 w-full overflow-x-auto'>
+            <h1 className='text-l font-medium'>Filter by Treatment Type</h1>
+            <div className='flex flex-wrap justify-start gap-4 pt-5 w-full md:flex-nowrap md:overflow-x-auto'>
                 {specialityData.map((item, index) => (
                     <div
                         onClick={() => onSpecialitySelect(selectedSpeciality === item.speciality ? null : item.speciality)}

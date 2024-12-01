@@ -39,7 +39,7 @@ const Dashboard = () => {
         }
       </style>
       <div class="header">
-        <h1>Beauty on the Rocks - Appointments Report</h1>
+        <h1>Wellness & Aesthetics - Appointments Report</h1>
         <p>Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
       </div>
       <div class="totals">

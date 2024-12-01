@@ -1,10 +1,10 @@
-import React, { useContext } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { AppContext } from '../context/AppContext'
+import React, { useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AppContext } from '../context/AppContext';
 
 const TopTreatments = () => {
-    const navigate = useNavigate()
-    const { treatments } = useContext(AppContext)
+    const navigate = useNavigate();
+    const { treatments } = useContext(AppContext);
 
     const handleTreatmentClick = (itemId) => {
         // Save current scroll position before navigating
@@ -38,7 +38,23 @@ const TopTreatments = () => {
                             <p className='text-sm text-gray-600 mt-1'>{item.about}</p>
                         </div>
 
-                        <p className='text-gray-600 font-medium mt-4'>Appointment fee: <span className='text-gray-800'>{item.currencySymbol}{item.fees}</span> </p>
+                        {/* ----- Treatment Options ----- */}
+                        <div className="mt-4">
+                            <p className="text-gray-600 font-medium mb-2">Treatment Options:</p>
+                            <div className="flex flex-wrap gap-2">
+                                {item.time_slots && item.time_slots.map((slot, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="bg-gray-50 px-3 py-1 rounded border border-gray-200"
+                                    >
+                                        <span className="text-gray-700">{slot.duration} minutes</span>
+                                        <span className="text-gray-600 ml-2">
+                                                R{slot.price}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 ))}
             </div>
@@ -52,7 +68,7 @@ const TopTreatments = () => {
                 more
             </button>
         </div>
-    )
-}
+    );
+};
 
-export default TopTreatments
+export default TopTreatments;

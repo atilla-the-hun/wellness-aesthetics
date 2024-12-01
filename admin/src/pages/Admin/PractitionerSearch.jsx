@@ -28,7 +28,7 @@ const PractitionerSearch = () => {
         }
       </style>
       <div class="header">
-        <h1>Beauty on the Rocks - Practitioner Report</h1>
+        <h1>Wellness & Aesthetics - Practitioner Report</h1>
         <p>Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
         <p>Practitioner: ${practitioner}</p>
         <p>Period: ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}</p>

@@ -22,7 +22,7 @@ const Contact = () => {
         <div className='flex flex-col justify-center items-start gap-6 -mt-[10px]'>
           <p className=' font-semibold text-lg text-white'>OUR OFFICE</p>
           <p className=' text-white'>1 Erf 379 <br /> 47 Outlook Road, Southbroom, 4277, KZN, South Africa</p>
-          <p className=' text-white'><a href="tel:+41796729120">+41 79 672 91 20</a> <br /> Email: <a href="mailto:contact@bestcareconsulting.com">contact@bestcareconsulting.com</a></p>
+          <p className=' text-white'><a href="tel:0774705140">077 470 5140</a> <br /> Email: <a href="mailto:contact@bestcareconsulting.com">contact@bestcareconsulting.com</a></p>
           <p className=' font-semibold text-lg text-white'>BOOK YOUR APPOINTMENT NOW</p>
           <p className=' text-white'>Click the button below.</p>
           <button 

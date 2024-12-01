@@ -62,7 +62,7 @@ const Team = () => {
                 <h2 className="text-3xl font-medium text-center mb-2 text-white">Our Team</h2>
                 <p className='text-center text-sm text-white mb-8'>Meet our friendly, experienced team.</p>
                 
-                <div className='flex flex-col items-center gap-8'>
+                <div className='flex flex-col items-center gap-6'>
                     {/* First Row */}
                     <div className='flex flex-col md:flex-row gap-6 w-full justify-center'>
                         {firstRow.map((member, index) => (

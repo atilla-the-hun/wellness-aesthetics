@@ -59,7 +59,7 @@ const Navbar = () => {
             </div>
             : <button onClick={() => navigate('/login')} className='bg-primary text-white px-8 py-3 rounded-full font-light hidden md:block'>Create account</button>
         }
-        <img onClick={() => setShowMenu(true)} className='w-6 md:hidden' src={assets.menu_icon} alt="" />
+        <img onClick={() => setShowMenu(true)} className='w-6 md:hidden' src={assets.hamburger_icon} alt="" />
 
         {/* ---- Mobile Menu ---- */}
         <div className={`md:hidden fixed left-0 top-0 bottom-0 ${showMenu ? 'w-[360px]' : 'w-0'} z-20 overflow-hidden bg-white transition-all`}>
