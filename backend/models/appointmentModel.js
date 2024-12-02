@@ -11,6 +11,8 @@ const appointmentSchema = new mongoose.Schema({
     amount: { type: Number, required: true },
     date: { type: Number, required: true },
     cancelled: { type: Boolean, default: false },
+    cancelledAtCheckout: { type: Boolean, default: false },
+    creditProcessed: { type: Boolean, default: false }, // Added field to track if credit was processed
     paymentStatus: { 
         type: String, 
         enum: ['none', 'partial', 'full'], 

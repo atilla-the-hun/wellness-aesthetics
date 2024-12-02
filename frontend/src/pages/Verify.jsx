@@ -73,12 +73,25 @@ const Verify = () => {
         try {
             const { data } = await axios.post(
                 backendUrl + "/api/user/verifyPayFast", 
-                { success, appointmentId, pfPaymentId },
+                { 
+                    success: success === "true", // Convert string to boolean
+                    appointmentId, 
+                    pfPaymentId 
+                },
                 { headers: { token } }
             );
 
             if (data.success) {
-                toast.success(data.message);
+                if (success === "true") {
+                    toast.success(data.message);
+                } else {
+                    // Show different message based on whether it's a first payment or additional payment
+                    if (data.message.includes('Additional payment cancelled')) {
+                        toast.info("Payment cancelled");
+                    } else {
+                        toast.info("Payment cancelled and appointment has been cancelled");
+                    }
+                }
             } else {
                 toast.error(data.message);
             }
@@ -91,13 +104,18 @@ const Verify = () => {
     }
 
     useEffect(() => {
-        if (token && appointmentId && success) {
-            if (paypal === "true") {
-                verifyPayPal();
-            } else if (payfast === "true") {
+        if (token && appointmentId) {
+            // Handle PayFast verification regardless of success status
+            if (payfast === "true") {
                 verifyPayFast();
-            } else {
-                verifyStripe();
+            }
+            // Only verify other payments if success is true
+            else if (success === "true") {
+                if (paypal === "true") {
+                    verifyPayPal();
+                } else {
+                    verifyStripe();
+                }
             }
         }
     }, [token])

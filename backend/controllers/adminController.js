@@ -1,145 +1,33 @@
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
+import userModel from "../models/userModel.js";
 import appointmentModel from "../models/appointmentModel.js";
 import treatmentModel from "../models/treatmentModel.js";
-import userModel from "../models/userModel.js";
 
-// Function to check if practitioner is available
-const isPractitionerAvailable = async (practitioner, slotDate, startTime, duration) => {
+// API to login admin
+const adminLogin = async (req, res) => {
     try {
-        // Convert start time to minutes since midnight for easier comparison
-        const [startHour, startMinute] = startTime.split(':').map(Number);
-        const startTimeInMinutes = startHour * 60 + startMinute;
-        const endTimeInMinutes = startTimeInMinutes + parseInt(duration);
+        const { username, email, password } = req.body;
 
-        // Get all non-cancelled appointments for this practitioner on this date
-        const existingAppointments = await appointmentModel.find({
-            practitioner,
-            slotDate,
-            cancelled: false
-        });
-
-        // Sort appointments by start time
-        existingAppointments.sort((a, b) => {
-            const [aHour, aMinute] = a.slotTime.split(':').map(Number);
-            const [bHour, bMinute] = b.slotTime.split(':').map(Number);
-            return (aHour * 60 + aMinute) - (bHour * 60 + bMinute);
-        });
-
-        // Check if the proposed slot would overlap with any existing appointments
-        for (const appointment of existingAppointments) {
-            const [bookedHour, bookedMinute] = appointment.slotTime.split(':').map(Number);
-            const bookedStartTime = bookedHour * 60 + bookedMinute;
-            const bookedEndTime = bookedStartTime + appointment.duration;
-
-            // Check if this slot overlaps with the appointment
-            if (
-                (startTimeInMinutes >= bookedStartTime && startTimeInMinutes < bookedEndTime) ||
-                (endTimeInMinutes > bookedStartTime && endTimeInMinutes <= bookedEndTime) ||
-                (startTimeInMinutes <= bookedStartTime && endTimeInMinutes >= bookedEndTime)
-            ) {
-                return false;
-            }
-
-            // Check if there's enough break time after previous appointments
-            if (startTimeInMinutes >= bookedEndTime && startTimeInMinutes < bookedEndTime + 15) {
-                return false;
-            }
-
-            // Check if there's enough break time before next appointments
-            if (endTimeInMinutes > bookedStartTime - 15 && endTimeInMinutes <= bookedStartTime) {
-                return false;
-            }
+        // Check for either username or email
+        if ((!username && !email) || !password) {
+            return res.json({ success: false, message: "Missing Details" });
         }
 
-        return true;
-    } catch (error) {
-        console.error('Error checking practitioner availability:', error);
-        throw error;
-    }
-};
+        // Check against environment variables
+        const adminUsername = process.env.ADMIN_USERNAME || process.env.ADMIN_EMAIL;
+        const adminPassword = process.env.ADMIN_PASSWORD;
 
-// Function to update practitioner bookings
-const updatePractitionerBookings = async (docId, practitioner, slotDate, slotTime) => {
-    try {
-        const treatment = await treatmentModel.findById(docId);
-        if (!treatment.practitioner_bookings) {
-            treatment.practitioner_bookings = {};
-        }
-        if (!treatment.practitioner_bookings[practitioner]) {
-            treatment.practitioner_bookings[practitioner] = {};
-        }
-        if (!treatment.practitioner_bookings[practitioner][slotDate]) {
-            treatment.practitioner_bookings[practitioner][slotDate] = [];
-        }
-        
-        treatment.practitioner_bookings[practitioner][slotDate].push(slotTime);
-        await treatment.save();
-    } catch (error) {
-        console.error('Error updating practitioner bookings:', error);
-        throw new Error('Failed to update practitioner bookings');
-    }
-};
-
-// API for admin login
-const loginAdmin = async (req, res) => {
-    try {
-        const { username, password } = req.body;
-
-        if (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD) {
-            const token = jwt.sign(
-                { 
-                    username,
-                    isAdmin: true
-                }, 
-                process.env.JWT_SECRET,
-                { expiresIn: '24h' }
-            );
-            res.json({ success: true, token });
-        } else {
-            res.json({ success: false, message: "Invalid credentials" });
-        }
-    } catch (error) {
-        console.log(error);
-        res.json({ success: false, message: error.message });
-    }
-};
-
-// API for admin to register a user
-const adminRegisterUser = async (req, res) => {
-    try {
-        const { name, phone } = req.body;
-
-        if (!name || !phone) {
-            return res.json({ success: false, message: 'Missing Details' });
+        if ((username !== adminUsername && email !== adminUsername) || password !== adminPassword) {
+            return res.json({ success: false, message: "Invalid Credentials" });
         }
 
-        if (!phone.trim()) {
-            return res.json({ success: false, message: "Please enter a phone number" });
-        }
+        // Include isAdmin in the token
+        const token = jwt.sign({ 
+            id: "admin",
+            isAdmin: true 
+        }, process.env.JWT_SECRET);
 
-        // Convert to lowercase for case-insensitive comparison
-        const lowerPhone = phone.toLowerCase();
-        const lowerName = name.toLowerCase();
-
-        // Check if user exists with this phone number
-        const existingUser = await userModel.findOne({ 
-            phone: { $regex: new RegExp('^' + lowerPhone + '$', 'i') } 
-        });
-
-        if (existingUser) {
-            return res.json({ success: false, message: "User already exists with this phone number" });
-        }
-
-        const userData = {
-            name: lowerName,
-            phone: lowerPhone
-        };
-
-        const newUser = new userModel(userData);
-        const user = await newUser.save();
-        
-        res.json({ success: true, userId: user._id, message: "User registered successfully" });
+        res.json({ success: true, token });
 
     } catch (error) {
         console.log(error);
@@ -147,183 +35,73 @@ const adminRegisterUser = async (req, res) => {
     }
 };
 
-// API for admin to login a user
-const adminLoginUser = async (req, res) => {
+// API to register admin
+const adminRegister = async (req, res) => {
     try {
-        const { phone } = req.body;
-        
-        if (!phone) {
-            return res.json({ success: false, message: "Phone number is required" });
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.json({ success: false, message: "Missing Details" });
         }
 
-        // Case-insensitive phone number search
-        const user = await userModel.findOne({ 
-            phone: { $regex: new RegExp('^' + phone.toLowerCase() + '$', 'i') } 
-        });
+        const token = jwt.sign({ id: "admin", isAdmin: true }, process.env.JWT_SECRET);
+        res.json({ success: true, token });
 
-        if (!user) {
-            return res.json({ success: false, message: "User not found with this phone number" });
-        }
-
-        res.json({ success: true, userId: user._id });
     } catch (error) {
         console.log(error);
         res.json({ success: false, message: error.message });
     }
 };
 
-// API for admin to book appointment with cash/speed point payment
-const adminBookAppointment = async (req, res) => {
-    let session;
+// API to get admin profile data
+const adminGetProfile = async (req, res) => {
     try {
-        session = await mongoose.startSession();
-        session.startTransaction();
-
-        const { userId, docId, slotDate, slotTime, practitioner, duration, amount, paymentMethod, paymentType } = req.body;
-        
-        if (!paymentType || !['full', 'partial'].includes(paymentType)) {
-            throw new Error('Invalid payment type. Must be "full" or "partial"');
-        }
-
-        if (!paymentMethod || !['cash', 'speed_point'].includes(paymentMethod)) {
-            throw new Error('Invalid payment method. Must be "cash" or "speed_point"');
-        }
-
-        if (!duration || !amount) {
-            throw new Error('Duration and amount are required');
-        }
-
-        // Check treatment availability
-        const docData = await treatmentModel.findById(docId).select("-password").session(session);
-        if (!docData || !docData.available) {
-            throw new Error('Treatment Not Available');
-        }
-
-        // Check practitioner availability
-        const isPractitionerFree = await isPractitionerAvailable(practitioner, slotDate, slotTime, duration);
-        if (!isPractitionerFree) {
-            throw new Error('Practitioner is not available for this time slot');
-        }
-
-        // Get user data
-        const userData = await userModel.findById(userId).select("-password").session(session);
-        if (!userData) {
-            throw new Error('User not found');
-        }
-
-        // Generate booking number
-        const bookingNumber = await appointmentModel.getNextBookingNumber();
-        if (!bookingNumber) {
-            throw new Error('Failed to generate booking number');
-        }
-
-        // Calculate payment amount
-        const paymentAmount = paymentType === 'full' ? amount : amount / 2;
-
-        // Create appointment with immediate payment
-        const appointmentData = {
-            userId,
-            docId,
-            userData,
-            docData: { ...docData.toObject(), slots_booked: undefined },
-            amount,
-            duration,
-            slotTime,
-            slotDate,
-            date: Date.now(),
-            bookingNumber,
-            paymentStatus: paymentType,
-            paidAmount: paymentAmount,
-            practitioner,
-            transactionDetails: [{
-                id: `${paymentMethod.toUpperCase()}_${Date.now()}`,
-                status: 'COMPLETED',
-                amount: paymentAmount,
-                paymentType,
-                paymentMethod,
-                date: new Date()
-            }]
-        };
-
-        const newAppointment = new appointmentModel(appointmentData);
-        await newAppointment.save({ session });
-
-        // Update practitioner bookings
-        await updatePractitionerBookings(docId, practitioner, slotDate, slotTime);
-
-        await session.commitTransaction();
-        res.json({ 
-            success: true, 
-            message: 'Appointment Created and Payment Recorded',
-            appointmentId: newAppointment._id
-        });
-
+        res.json({ success: true });
     } catch (error) {
-        if (session) {
-            await session.abortTransaction();
-        }
-        console.error('Booking Error:', error);
-        res.json({ 
-            success: false, 
-            message: error.message || 'Failed to book appointment'
-        });
-    } finally {
-        if (session) {
-            session.endSession();
-        }
+        console.log(error);
+        res.json({ success: false, message: error.message });
     }
 };
 
-// API for accepting balance payment
-const acceptBalancePayment = async (req, res) => {
+// API to update admin profile
+const adminUpdateProfile = async (req, res) => {
     try {
-        const { appointmentId, paymentMethod } = req.body;
-
-        const appointment = await appointmentModel.findById(appointmentId);
-        if (!appointment) {
-            return res.json({ success: false, message: 'Appointment not found' });
-        }
-
-        if (appointment.paymentStatus !== 'partial') {
-            return res.json({ success: false, message: 'This appointment is not eligible for balance payment' });
-        }
-
-        const remainingBalance = appointment.amount - appointment.paidAmount;
-
-        // Update appointment with full payment
-        await appointmentModel.findByIdAndUpdate(appointmentId, {
-            paymentStatus: 'full',
-            paidAmount: appointment.amount,
-            $push: {
-                transactionDetails: {
-                    id: `${paymentMethod.toUpperCase()}_${Date.now()}`,
-                    status: 'COMPLETED',
-                    amount: remainingBalance,
-                    paymentType: 'balance',
-                    paymentMethod,
-                    date: new Date()
-                }
-            }
-        });
-
-        res.json({ 
-            success: true, 
-            message: 'Balance payment accepted successfully'
-        });
-
+        res.json({ success: true });
     } catch (error) {
-        console.error('Balance Payment Error:', error);
-        res.json({ 
-            success: false, 
-            message: error.message || 'Failed to process balance payment'
-        });
+        console.log(error);
+        res.json({ success: false, message: error.message });
     }
 };
 
-// API to get all appointments list
-const appointmentsAdmin = async (req, res) => {
+// API to get dashboard data
+const adminGetDashData = async (req, res) => {
     try {
-        const appointments = await appointmentModel.find({}).sort({ date: -1 });
+        const treatments = await treatmentModel.countDocuments();
+        const appointments = await appointmentModel.countDocuments();
+        const patients = await userModel.countDocuments();
+        const latestAppointments = await appointmentModel.find()
+            .populate('userData')
+            .populate('docData')
+            .sort({ date: -1 });
+
+        res.json({
+            success: true,
+            treatments,
+            appointments,
+            patients,
+            latestAppointments
+        });
+
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// API to get all appointments
+const adminGetAllAppointments = async (req, res) => {
+    try {
+        const appointments = await appointmentModel.find().sort({ date: -1 });
         res.json({ success: true, appointments });
     } catch (error) {
         console.log(error);
@@ -331,8 +109,8 @@ const appointmentsAdmin = async (req, res) => {
     }
 };
 
-// API for appointment cancellation
-const appointmentCancel = async (req, res) => {
+// API to cancel appointment
+const adminCancelAppointment = async (req, res) => {
     try {
         const { appointmentId } = req.body;
         await appointmentModel.findByIdAndUpdate(appointmentId, { cancelled: true });
@@ -343,79 +121,152 @@ const appointmentCancel = async (req, res) => {
     }
 };
 
-// API for completing appointment
-const completeAppointment = async (req, res) => {
+// API to complete appointment
+const adminCompleteAppointment = async (req, res) => {
     try {
         const { appointmentId } = req.body;
         await appointmentModel.findByIdAndUpdate(appointmentId, { isCompleted: true });
-        res.json({ success: true, message: 'Appointment Completed Successfully' });
+        res.json({ success: true, message: 'Appointment Completed' });
     } catch (error) {
         console.log(error);
         res.json({ success: false, message: error.message });
     }
 };
 
-// API for deleting appointment
-const deleteAppointment = async (req, res) => {
+// API to delete appointment
+const adminDeleteAppointment = async (req, res) => {
     try {
         const { appointmentId } = req.body;
         await appointmentModel.findByIdAndDelete(appointmentId);
-        res.json({ success: true, message: 'Appointment Deleted Successfully' });
+        res.json({ success: true, message: 'Appointment Deleted' });
     } catch (error) {
         console.log(error);
         res.json({ success: false, message: error.message });
     }
 };
 
-// API for adding Treatment
-const addTreatment = async (req, res) => {
+// API to accept balance payment
+const adminAcceptBalancePayment = async (req, res) => {
     try {
-        const { name, speciality, about, time_slots } = req.body;
+        const { appointmentId, paymentMethod } = req.body;
+        const appointment = await appointmentModel.findById(appointmentId);
 
-        // checking for all data to add treatment
-        if (!name || !speciality || !about || !time_slots) {
-            return res.json({ success: false, message: "Missing Details" });
+        if (!appointment) {
+            return res.json({ success: false, message: 'Appointment not found' });
         }
 
-        // Parse time_slots from JSON string to array
-        const parsedTimeSlots = JSON.parse(time_slots);
-        
-        if (!Array.isArray(parsedTimeSlots) || parsedTimeSlots.length === 0) {
-            return res.json({ success: false, message: "Invalid time slots" });
+        const remainingBalance = appointment.amount - appointment.paidAmount;
+        const newPaidAmount = appointment.paidAmount + remainingBalance;
+
+        await appointmentModel.findByIdAndUpdate(appointmentId, {
+            paymentStatus: 'full',
+            paidAmount: newPaidAmount,
+            $push: {
+                transactionDetails: {
+                    id: `BALANCE_${Date.now()}`,
+                    status: 'COMPLETE',
+                    amount: remainingBalance,
+                    paymentType: 'balance',
+                    paymentMethod,
+                    date: new Date()
+                }
+            }
+        });
+
+        res.json({ success: true, message: 'Balance payment accepted' });
+
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// API to credit user's account
+const creditUserAccount = async (req, res) => {
+    try {
+        const { userId, amount, appointmentId } = req.body;
+
+        // Validate inputs
+        if (!userId || !amount || !appointmentId) {
+            return res.json({ 
+                success: false, 
+                message: 'Missing required fields' 
+            });
         }
 
-        // Validate each time slot has duration and price
-        const invalidSlots = parsedTimeSlots.filter(slot => !slot.duration || !slot.price || slot.price <= 0);
-        if (invalidSlots.length > 0) {
-            return res.json({ success: false, message: "Invalid time slot data" });
+        // Convert amount to number and validate
+        const creditAmount = Number(amount);
+        if (isNaN(creditAmount) || creditAmount <= 0) {
+            return res.json({
+                success: false,
+                message: 'Invalid credit amount'
+            });
         }
 
-        const treatmentData = {
-            name,
-            speciality,
-            about,
-            time_slots: parsedTimeSlots,
-            date: Date.now()
+        // Find user
+        const user = await userModel.findById(userId);
+        if (!user) {
+            return res.json({ 
+                success: false, 
+                message: 'User not found' 
+            });
+        }
+
+        // Calculate new balance
+        const newBalance = (user.creditBalance || 0) + creditAmount;
+
+        // Create credit transaction object
+        const creditTransaction = {
+            amount: creditAmount,
+            type: 'credit',
+            appointmentId: appointmentId.toString(),
+            date: new Date(),
+            description: 'Credit from cancelled appointment'
         };
 
-        const newTreatment = new treatmentModel(treatmentData);
-        await newTreatment.save();
-        res.json({ success: true, message: 'Treatment Added' });
+        try {
+            // Create transaction detail for the appointment
+            const transactionDetail = {
+                id: `CREDIT_REFUND_${Date.now()}`,
+                status: 'COMPLETE',
+                amount: creditAmount,
+                paymentType: 'credit_refund',
+                paymentMethod: 'admin_credit',
+                date: new Date(),
+                description: 'Credited to user account'
+            };
+
+            // Update user with new balance and credit history
+            await userModel.findByIdAndUpdate(userId, {
+                creditBalance: newBalance,
+                $push: { creditHistory: creditTransaction }
+            }, { runValidators: true });
+
+            // Update appointment to mark credit as processed and add transaction detail
+            await appointmentModel.findByIdAndUpdate(appointmentId, {
+                creditProcessed: true,
+                $push: { transactionDetails: transactionDetail }
+            });
+
+            res.json({ 
+                success: true, 
+                message: `Successfully credited ${creditAmount} to user's account`,
+                newBalance
+            });
+        } catch (updateError) {
+            console.error('Update Error:', updateError);
+            res.json({ 
+                success: false, 
+                message: 'Error updating user credit: ' + updateError.message 
+            });
+        }
 
     } catch (error) {
-        console.log(error);
-        res.json({ success: false, message: error.message });
-    }
-};
-
-// API to get all treatments list for admin panel
-const allTreatments = async (req, res) => {
-    try {
-        const treatments = await treatmentModel.find({}).select('-password');
-        res.json({ success: true, treatments });
-    } catch (error) {
-        console.log(error);
-        res.json({ success: false, message: error.message });
+        console.error('Credit User Account Error:', error);
+        res.json({ 
+            success: false, 
+            message: error.message 
+        });
     }
 };
 
@@ -423,113 +274,44 @@ const allTreatments = async (req, res) => {
 const deleteTreatment = async (req, res) => {
     try {
         const { treatmentId } = req.body;
-        await treatmentModel.findByIdAndDelete(treatmentId);
-        res.json({ success: true, message: 'Treatment Deleted Successfully' });
-    } catch (error) {
-        console.log(error);
-        res.json({ success: false, message: error.message });
-    }
-};
 
-// API to get dashboard data for admin panel
-const adminDashboard = async (req, res) => {
-    try {
-        const treatments = await treatmentModel.find({});
-        const users = await userModel.find({});
-        const appointments = await appointmentModel.find({}).sort({ date: -1 });
-
-        const dashData = {
-            treatments: treatments.length,
-            appointments: appointments.length,
-            patients: users.length,
-            latestAppointments: appointments
-        };
-
-        res.json({ success: true, dashData });
-
-    } catch (error) {
-        console.log(error);
-        res.json({ success: false, message: error.message });
-    }
-};
-
-// API to get treatment data
-const getTreatment = async (req, res) => {
-    try {
-        const { treatmentId } = req.body;
-        const treatment = await treatmentModel.findById(treatmentId).select('-password');
-        res.json({ success: true, treatment });
-    } catch (error) {
-        console.log(error);
-        res.json({ success: false, message: error.message });
-    }
-};
-
-// API to update treatment
-const updateTreatment = async (req, res) => {
-    try {
-        const { treatmentId, name, speciality, about, time_slots, available } = req.body;
-
-        // Create update object with required fields
-        const updateData = {
-            name,
-            speciality,
-            about,
-            available
-        };
-
-        // Handle time_slots if provided
-        if (time_slots) {
-            try {
-                const parsedTimeSlots = JSON.parse(time_slots);
-                
-                // Validate time slots array
-                if (!Array.isArray(parsedTimeSlots)) {
-                    return res.json({ success: false, message: "Time slots must be an array" });
-                }
-
-                // Validate each time slot
-                for (const slot of parsedTimeSlots) {
-                    if (!slot.duration || !slot.price) {
-                        return res.json({ success: false, message: "Each time slot must have duration and price" });
-                    }
-                    if (slot.price <= 0) {
-                        return res.json({ success: false, message: "Price must be greater than 0" });
-                    }
-                    if (slot.duration <= 0) {
-                        return res.json({ success: false, message: "Duration must be greater than 0" });
-                    }
-                }
-
-                updateData.time_slots = parsedTimeSlots;
-            } catch (error) {
-                return res.json({ success: false, message: "Invalid time slots format" });
-            }
+        // Check if there are any appointments for this treatment
+        const appointments = await appointmentModel.find({ docId: treatmentId });
+        if (appointments.length > 0) {
+            return res.json({ 
+                success: false, 
+                message: 'Cannot delete treatment with existing appointments' 
+            });
         }
 
-        // Update the treatment
-        await treatmentModel.findByIdAndUpdate(treatmentId, updateData);
-        res.json({ success: true, message: 'Treatment Updated Successfully' });
+        // Delete the treatment
+        await treatmentModel.findByIdAndDelete(treatmentId);
+        
+        res.json({ 
+            success: true, 
+            message: 'Treatment deleted successfully' 
+        });
+
     } catch (error) {
         console.log(error);
-        res.json({ success: false, message: error.message });
+        res.json({ 
+            success: false, 
+            message: error.message 
+        });
     }
 };
 
 export {
-    loginAdmin,
-    appointmentsAdmin,
-    appointmentCancel,
-    completeAppointment,
-    deleteAppointment,
-    addTreatment,
-    allTreatments,
-    adminDashboard,
-    deleteTreatment,
-    getTreatment,
-    updateTreatment,
-    adminRegisterUser,
-    adminLoginUser,
-    adminBookAppointment,
-    acceptBalancePayment
+    adminLogin,
+    adminRegister,
+    adminGetProfile,
+    adminUpdateProfile,
+    adminGetDashData,
+    adminGetAllAppointments,
+    adminCancelAppointment,
+    adminCompleteAppointment,
+    adminDeleteAppointment,
+    adminAcceptBalancePayment,
+    creditUserAccount,
+    deleteTreatment
 };

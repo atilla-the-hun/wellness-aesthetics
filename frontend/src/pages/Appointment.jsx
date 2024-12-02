@@ -25,6 +25,7 @@ const Appointment = () => {
     const [selectedPrice, setSelectedPrice] = useState(null)
     const [isLoading, setIsLoading] = useState(false)
     const [isPaymentLoading, setIsPaymentLoading] = useState(false)
+    const [userCredit, setUserCredit] = useState(0)
 
     const navigate = useNavigate()
 
@@ -158,6 +159,27 @@ const Appointment = () => {
         setSlotIndex(0)
     }
 
+    const fetchUserCredit = async () => {
+        try {
+            const { data } = await axios.get(
+                backendUrl + '/api/user/get-profile',
+                { headers: { token } }
+            );
+            if (data.success) {
+                setUserCredit(data.userData.creditBalance || 0);
+            }
+        } catch (error) {
+            console.error('Error fetching user credit:', error);
+        }
+    };
+
+    const calculatePaymentAmount = (totalAmount) => {
+        if (!totalAmount) return 0;
+        const requiredAmount = paymentType === 'partial' ? totalAmount / 2 : totalAmount;
+        const remainingAfterCredit = Math.max(0, requiredAmount - userCredit);
+        return remainingAfterCredit;
+    };
+
     const initiateBooking = async () => {
         if (!token) {
             toast.warning('Login to book appointment')
@@ -185,7 +207,8 @@ const Appointment = () => {
                 duration: selectedDuration,
                 amount: selectedPrice,
                 paymentType,
-                practitioner: selectedPractitioner
+                practitioner: selectedPractitioner,
+                useCredit: userCredit > 0
             });
 
             const { data } = await axios.post(backendUrl + '/api/user/book-appointment', 
@@ -196,14 +219,24 @@ const Appointment = () => {
                     duration: selectedDuration,
                     amount: selectedPrice,
                     paymentType, 
-                    practitioner: selectedPractitioner 
+                    practitioner: selectedPractitioner,
+                    useCredit: userCredit > 0
                 },
                 { headers: { token } }
             )
             
             if (data.success) {
                 setAppointmentId(data.appointmentId)
-                initiatePayment(data.appointmentId)
+                const paymentAmount = calculatePaymentAmount(selectedPrice);
+                
+                // If payment amount is 0 (fully covered by credit), no need for PayFast
+                if (paymentAmount === 0) {
+                    toast.success('Appointment booked using credit balance');
+                    navigate('/my-appointments');
+                    return;
+                }
+
+                initiatePayment(data.appointmentId, paymentAmount)
             } else {
                 setIsPaymentLoading(false)
                 toast.error(data.message)
@@ -216,11 +249,15 @@ const Appointment = () => {
         }
     }
 
-    const initiatePayment = async (appointmentId) => {
+    const initiatePayment = async (appointmentId, amount) => {
         try {
             const { data } = await axios.post(
                 backendUrl + '/api/user/payment-payfast',
-                { appointmentId, paymentType },
+                { 
+                    appointmentId, 
+                    paymentType,
+                    amount 
+                },
                 { headers: { token } }
             )
 
@@ -261,6 +298,12 @@ const Appointment = () => {
             getAvailableSolts()
         }
     }, [docInfo, selectedDate, selectedDuration, selectedPractitioner])
+
+    useEffect(() => {
+        if (token) {
+            fetchUserCredit();
+        }
+    }, [token]);
 
     return docInfo ? (
         <div>
@@ -383,6 +426,16 @@ const Appointment = () => {
                             <span>Pay 50% ({currencySymbol}{selectedPrice ? selectedPrice / 2 : 0})</span>
                         </label>
                     </div>
+                    {userCredit > 0 && (
+                        <div className='mb-4 text-green-600'>
+                            <p>Available Credit: {currencySymbol}{userCredit}</p>
+                            <p className='text-sm'>
+                                {calculatePaymentAmount(selectedPrice) === 0 
+                                    ? 'Your credit balance will cover the full payment'
+                                    : `${currencySymbol}${calculatePaymentAmount(selectedPrice)} will be charged after using credit`}
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 <div className='flex gap-4 mt-6'>

@@ -1,43 +1,34 @@
 import express from 'express';
-import { 
-    loginAdmin, 
-    appointmentsAdmin, 
-    appointmentCancel, 
-    addTreatment, 
-    allTreatments, 
-    adminDashboard, 
-    deleteTreatment, 
-    deleteAppointment, 
-    completeAppointment, 
-    getTreatment, 
-    updateTreatment,
-    adminRegisterUser,
-    adminLoginUser,
-    adminBookAppointment,
-    acceptBalancePayment
-} from '../controllers/adminController.js';
-import { changeAvailablity } from '../controllers/treatmentController.js';
 import authAdmin from '../middleware/authAdmin.js';
-import upload from '../middleware/multer.js';
+import { 
+    adminLogin, 
+    adminRegister, 
+    adminGetProfile, 
+    adminUpdateProfile,
+    adminGetDashData,
+    adminGetAllAppointments,
+    adminCancelAppointment,
+    adminCompleteAppointment,
+    adminDeleteAppointment,
+    adminAcceptBalancePayment,
+    creditUserAccount,
+    deleteTreatment // Added new controller
+} from '../controllers/adminController.js';
+
 const adminRouter = express.Router();
 
-adminRouter.post("/login", loginAdmin)
-adminRouter.post("/add-treatment", authAdmin, upload.single('image'), addTreatment)
-adminRouter.get("/appointments", authAdmin, appointmentsAdmin)
-adminRouter.post("/cancel-appointment", authAdmin, appointmentCancel)
-adminRouter.post("/complete-appointment", authAdmin, completeAppointment)
-adminRouter.post("/delete-appointment", authAdmin, deleteAppointment)
-adminRouter.get("/all-treatments", authAdmin, allTreatments)
-adminRouter.post("/get-treatment", authAdmin, getTreatment)
-adminRouter.post("/update-treatment", authAdmin, updateTreatment)
-adminRouter.post("/change-availability", authAdmin, changeAvailablity)
-adminRouter.get("/dashboard", authAdmin, adminDashboard)
-adminRouter.post("/delete-treatment", authAdmin, deleteTreatment)
+adminRouter.post("/login", adminLogin);
+adminRouter.post("/register", adminRegister);
 
-// New routes for managing user appointments
-adminRouter.post("/register-user", authAdmin, adminRegisterUser)
-adminRouter.post("/login-user", authAdmin, adminLoginUser)
-adminRouter.post("/book-appointment", authAdmin, adminBookAppointment)
-adminRouter.post("/accept-balance", authAdmin, acceptBalancePayment)
+adminRouter.get("/get-profile", authAdmin, adminGetProfile);
+adminRouter.post("/update-profile", authAdmin, adminUpdateProfile);
+adminRouter.get("/get-dash-data", authAdmin, adminGetDashData);
+adminRouter.get("/get-all-appointments", authAdmin, adminGetAllAppointments);
+adminRouter.post("/cancel-appointment", authAdmin, adminCancelAppointment);
+adminRouter.post("/complete-appointment", authAdmin, adminCompleteAppointment);
+adminRouter.post("/delete-appointment", authAdmin, adminDeleteAppointment);
+adminRouter.post("/accept-balance-payment", authAdmin, adminAcceptBalancePayment);
+adminRouter.post("/credit-user-account", authAdmin, creditUserAccount);
+adminRouter.post("/delete-treatment", authAdmin, deleteTreatment); // Added new route
 
 export default adminRouter;

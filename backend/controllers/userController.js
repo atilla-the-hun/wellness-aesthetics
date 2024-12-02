@@ -7,32 +7,10 @@ import { v2 as cloudinary } from 'cloudinary';
 import fetch from 'node-fetch';
 import crypto from 'crypto';
 
-// PayPal API Configuration
-const PAYPAL_API = 'https://api-m.sandbox.paypal.com';
-
 // PayFast API Configuration
 const PAYFAST_API = process.env.PAYFAST_SANDBOX === 'true' 
     ? 'https://sandbox.payfast.co.za'
     : 'https://www.payfast.co.za';
-
-// Function to get PayPal access token
-const getPayPalAccessToken = async () => {
-    try {
-        const auth = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString('base64');
-        const response = await fetch(`${PAYPAL_API}/v1/oauth2/token`, {
-            method: 'POST',
-            body: 'grant_type=client_credentials',
-            headers: {
-                Authorization: `Basic ${auth}`,
-            }
-        });
-        const data = await response.json();
-        return data.access_token;
-    } catch (error) {
-        console.error('PayPal Access Token Error:', error);
-        throw new Error('Failed to get PayPal access token');
-    }
-};
 
 // Function to generate PayFast signature
 const generatePayFastSignature = (data, passPhrase = null) => {
@@ -41,7 +19,6 @@ const generatePayFastSignature = (data, passPhrase = null) => {
     for (let key in data) {
         if(data.hasOwnProperty(key)) {
             if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
-                // Safely convert value to string and trim
                 const value = String(data[key]).trim();
                 pfOutput +=`${key}=${encodeURIComponent(value).replace(/%20/g, "+")}&`
             }
@@ -179,6 +156,8 @@ const registerUser = async (req, res) => {
         const userData = {
             name: lowerName,
             phone: lowerPhone,
+            creditBalance: 0,
+            creditHistory: []
         };
 
         const newUser = new userModel(userData);
@@ -278,8 +257,8 @@ const bookAppointment = async (req, res) => {
         session = await mongoose.startSession();
         session.startTransaction();
 
-        const { userId, docId, slotDate, slotTime, paymentType, practitioner, duration, amount } = req.body;
-        console.log('Received booking request:', { userId, docId, slotDate, slotTime, paymentType, practitioner, duration, amount });
+        const { userId, docId, slotDate, slotTime, paymentType, practitioner, duration, amount, useCredit } = req.body;
+        console.log('Received booking request:', { userId, docId, slotDate, slotTime, paymentType, practitioner, duration, amount, useCredit });
         
         if (!paymentType || !['full', 'partial'].includes(paymentType)) {
             throw new Error('Invalid payment type. Must be "full" or "partial"');
@@ -307,38 +286,100 @@ const bookAppointment = async (req, res) => {
             throw new Error('User not found');
         }
 
+        // Calculate required payment amount based on payment type
+        const totalAmount = amount;
+        const requiredAmount = paymentType === 'partial' ? totalAmount / 2 : totalAmount;
+        let creditUsed = 0;
+        let remainingPayment = requiredAmount;
+
+        // Initialize transaction details array
+        let transactionDetails = [];
+
+        // Handle credit usage if requested
+        if (useCredit && userData.creditBalance > 0) {
+            creditUsed = Math.min(userData.creditBalance, requiredAmount);
+            remainingPayment = requiredAmount - creditUsed;
+
+            // Add credit transaction to the array
+            if (creditUsed > 0) {
+                transactionDetails.push({
+                    id: `CREDIT_${Date.now()}`,
+                    status: 'COMPLETE',
+                    amount: creditUsed,
+                    paymentType: paymentType, // Use the original payment type (partial/full)
+                    paymentMethod: 'credit_balance',
+                    date: new Date()
+                });
+            }
+
+            // Update user's credit balance
+            await userModel.findByIdAndUpdate(userId, {
+                $inc: { creditBalance: -creditUsed },
+                $push: {
+                    creditHistory: {
+                        amount: -creditUsed,
+                        type: 'debit',
+                        appointmentId: null, // Will be updated after appointment creation
+                        date: new Date(),
+                        description: 'Used for new appointment'
+                    }
+                }
+            }, { session });
+        }
+
         // Generate booking number
         const bookingNumber = await appointmentModel.getNextBookingNumber();
         if (!bookingNumber) {
             throw new Error('Failed to generate booking number');
         }
 
-        // Create appointment with pending payment status
+        // Determine payment status based on payment type and amount paid
+        let paymentStatus;
+        if (paymentType === 'partial') {
+            // For partial payments, only mark as partial if credit covers half the total amount
+            paymentStatus = creditUsed >= totalAmount / 2 ? 'partial' : 'none';
+        } else {
+            // For full payments, only mark as full if credit covers the total amount
+            paymentStatus = creditUsed >= totalAmount ? 'full' : 'none';
+        }
+
+        // Create appointment
         const appointmentData = {
             userId,
             docId,
             userData,
             docData: { ...docData.toObject(), slots_booked: undefined },
-            amount,
+            amount: totalAmount,
             duration,
             slotTime,
             slotDate,
             date: Date.now(),
             bookingNumber,
-            paymentStatus: 'none',
-            paidAmount: 0,
-            practitioner
+            paymentStatus,
+            paidAmount: creditUsed,
+            practitioner,
+            creditUsed,
+            transactionDetails
         };
 
         const newAppointment = new appointmentModel(appointmentData);
         await newAppointment.save({ session });
+
+        // Update credit history with appointment ID if credit was used
+        if (creditUsed > 0) {
+            await userModel.updateOne(
+                { _id: userId, "creditHistory.appointmentId": null },
+                { $set: { "creditHistory.$.appointmentId": newAppointment._id } },
+                { session }
+            );
+        }
 
         await session.commitTransaction();
         res.json({ 
             success: true, 
             message: 'Appointment Created',
             appointmentId: newAppointment._id,
-            amount: paymentType === 'full' ? amount : amount / 2
+            remainingPayment
         });
 
     } catch (error) {
@@ -391,7 +432,7 @@ const listAppointment = async (req, res) => {
 // API to make payment of appointment using PayFast
 const paymentPayFast = async (req, res) => {
     try {
-        const { appointmentId, paymentType } = req.body;
+        const { appointmentId, paymentType, amount } = req.body;
         const { origin } = req.headers;
 
         const appointmentData = await appointmentModel.findById(appointmentId);
@@ -400,15 +441,11 @@ const paymentPayFast = async (req, res) => {
             return res.json({ success: false, message: 'Appointment Cancelled or not found' });
         }
 
-        // Calculate payment amount based on payment type and current paid amount
-        let paymentAmount;
-        if (paymentType === 'full') {
-            paymentAmount = appointmentData.paymentStatus === 'none' ? 
-                appointmentData.amount : 
-                (appointmentData.amount - appointmentData.paidAmount);
-        } else {
-            paymentAmount = appointmentData.amount / 2;
-        }
+        // Use the provided amount (which has already been adjusted for credit)
+        // or calculate based on remaining balance
+        const paymentAmount = amount || (paymentType === 'full' ? 
+            (appointmentData.amount - appointmentData.paidAmount) : 
+            (appointmentData.amount / 2 - appointmentData.paidAmount));
 
         // Store payment details in the appointment for later verification
         await appointmentModel.findByIdAndUpdate(appointmentId, {
@@ -460,15 +497,43 @@ const paymentPayFast = async (req, res) => {
 // API to verify PayFast payment
 const verifyPayFast = async (req, res) => {
     try {
-        const { appointmentId } = req.body;
+        const { appointmentId, success } = req.body;
         
-        // In sandbox mode, assume payment success
-        if (process.env.PAYFAST_SANDBOX === 'true') {
-            const appointment = await appointmentModel.findById(appointmentId);
-            if (!appointment) {
-                return res.json({ success: false, message: 'Appointment not found' });
-            }
+        const appointment = await appointmentModel.findById(appointmentId);
+        if (!appointment) {
+            return res.json({ success: false, message: 'Appointment not found' });
+        }
 
+        // If payment was cancelled (success=false in query params)
+        if (success === false) {
+            // Only reset payment status if it's a first-time payment (status is 'none')
+            if (appointment.paymentStatus === 'none') {
+                // Reset the pending payment and mark as cancelled at checkout
+                await appointmentModel.findByIdAndUpdate(appointmentId, {
+                    pendingPayment: null,
+                    cancelled: true,
+                    cancelledAtCheckout: true,
+                    paymentStatus: 'none',
+                    paidAmount: 0
+                });
+            } else {
+                // For appointments with existing payments, just clear pending payment
+                await appointmentModel.findByIdAndUpdate(appointmentId, {
+                    pendingPayment: null
+                });
+            }
+            
+            return res.json({
+                success: true,
+                message: appointment.paymentStatus === 'none' ? 
+                    'Payment cancelled and appointment cancelled' : 
+                    'Additional payment cancelled',
+                paymentStatus: appointment.paymentStatus
+            });
+        }
+
+        // In sandbox mode or handling successful payment
+        if (process.env.PAYFAST_SANDBOX === 'true' || success === true) {
             const pendingPayment = appointment.pendingPayment;
             if (!pendingPayment) {
                 return res.json({ success: false, message: 'No pending payment found' });
@@ -477,9 +542,27 @@ const verifyPayFast = async (req, res) => {
             // Calculate new paid amount
             const currentPaidAmount = appointment.paidAmount || 0;
             const newPaidAmount = currentPaidAmount + pendingPayment.amount;
+            const totalAmount = appointment.amount;
 
-            // Determine new payment status
-            const newPaymentStatus = newPaidAmount >= appointment.amount ? 'full' : 'partial';
+            // Determine new payment status based on total amount and payment type
+            let newPaymentStatus;
+            if (pendingPayment.paymentType === 'partial') {
+                // For partial payments, check if at least half is paid
+                newPaymentStatus = newPaidAmount >= totalAmount / 2 ? 'partial' : 'none';
+            } else {
+                // For full payments, check if total amount is paid
+                newPaymentStatus = newPaidAmount >= totalAmount ? 'full' : 'partial';
+            }
+
+            // Create transaction detail for PayFast payment
+            const transactionDetail = {
+                id: `PAYFAST_${Date.now()}`,
+                status: 'COMPLETE',
+                amount: pendingPayment.amount,
+                paymentType: pendingPayment.paymentType,
+                paymentMethod: 'payfast',
+                date: new Date()
+            };
 
             // Update appointment with new payment details
             await appointmentModel.findByIdAndUpdate(
@@ -488,15 +571,7 @@ const verifyPayFast = async (req, res) => {
                     paymentStatus: newPaymentStatus,
                     paidAmount: newPaidAmount,
                     pendingPayment: null,
-                    $push: {
-                        transactionDetails: {
-                            id: `SANDBOX_${Date.now()}`,
-                            status: 'COMPLETE',
-                            amount: pendingPayment.amount,
-                            paymentType: pendingPayment.paymentType,
-                            date: new Date()
-                        }
-                    }
+                    $push: { transactionDetails: transactionDetail }
                 }
             );
 

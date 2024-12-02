@@ -19,6 +19,26 @@ const AllAppointments = () => {
     return `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
   }
 
+  // Function to get payment status text
+  const getPaymentStatusText = (appointment) => {
+    if (appointment.cancelled) {
+      if (appointment.cancelledAtCheckout) {
+        return "Unpaid - cancelled on checkout";
+      }
+      return "Cancelled";
+    }
+    
+    switch (appointment.paymentStatus) {
+      case 'full':
+        return 'Paid in full';
+      case 'partial':
+        return `Partially paid (${currency}${appointment.paidAmount})`;
+      case 'none':
+      default:
+        return 'Unpaid';
+    }
+  }
+
   useEffect(() => {
     if (aToken) {
       getAllAppointments()
@@ -32,6 +52,9 @@ const AllAppointments = () => {
       <div className='bg-white border rounded text-sm max-h-[80vh] overflow-y-scroll'>
         {appointments.map((item, index) => {
           const endTime = calculateEndTime(item.slotTime, item.duration);
+          const paymentStatusText = getPaymentStatusText(item);
+          const showBalancePayment = !item.cancelled && item.paymentStatus === 'partial';
+
           return (
             <div key={index} className='py-3 px-6 border-b pt-[20px] pb-[20px] hover:bg-gray-50'>
               <div className='flex flex-col gap-1'>
@@ -55,10 +78,20 @@ const AllAppointments = () => {
               <p className='font-semibold mt-[20px]'>Phone Number</p>
               <p>{item.userData.phone}</p>
               
-              <p className='font-semibold mt-[20px]'>Payment</p>
-              <p className='text-xs inline-block border border-primary px-2 rounded-full'>
-                {item.payment ? 'Online' : 'CASH'}
-              </p>
+              <p className='font-semibold mt-[20px]'>Payment Status</p>
+              <div className='flex flex-col gap-2'>
+                <p className={`text-sm ${item.cancelled ? 'text-red-500' : item.paymentStatus === 'full' ? 'text-green-500' : 'text-orange-500'}`}>
+                  {paymentStatusText}
+                </p>
+                {showBalancePayment && (
+                  <button 
+                    className='bg-primary text-white text-sm px-4 py-1 rounded-full w-fit'
+                    onClick={() => {/* Handle balance payment */}}
+                  >
+                    Balance Payment
+                  </button>
+                )}
+              </div>
               
               <p className='font-semibold mt-[20px]'>Age</p>
               <p>{calculateAge(item.userData.dob)}</p>

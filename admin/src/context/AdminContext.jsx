@@ -1,330 +1,279 @@
+import { createContext, useState } from "react";
 import axios from "axios";
-import { createContext, useState, useEffect } from "react";
 import { toast } from "react-toastify";
 
-export const AdminContext = createContext()
+export const AdminContext = createContext();
 
-const AdminContextProvider = (props) => {
-    const backendUrl = import.meta.env.VITE_BACKEND_URL
-    const [aToken, setAToken] = useState(localStorage.getItem('aToken') || '')
-    const [appointments, setAppointments] = useState([])
-    const [treatments, setTreatments] = useState([])
-    const [dashData, setDashData] = useState(false)
+const AdminContextProvider = ({ children }) => {
+    const [aToken, setAToken] = useState(localStorage.getItem("aToken"));
+    const [dashData, setDashData] = useState(null);
+    const [appointments, setAppointments] = useState([]);
+    const [treatments, setTreatments] = useState([]);
 
-    // Function to update axios headers
-    const updateAxiosHeaders = (token) => {
-        if (token) {
-            // Set token in multiple formats to handle different cases
-            axios.defaults.headers.common['aToken'] = token;
-            axios.defaults.headers.common['atoken'] = token;
-            axios.defaults.headers.common['ATOKEN'] = token;
-            axios.defaults.headers.common['a-token'] = token;
-        } else {
-            delete axios.defaults.headers.common['aToken'];
-            delete axios.defaults.headers.common['atoken'];
-            delete axios.defaults.headers.common['ATOKEN'];
-            delete axios.defaults.headers.common['a-token'];
+    const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
+    // Configure axios headers
+    const getHeaders = () => ({
+        token: aToken
+    });
+
+    // Function to get dashboard data
+    const getDashData = async () => {
+        try {
+            const { data } = await axios.get(
+                backendUrl + "/api/admin/get-dash-data", 
+                { headers: getHeaders() }
+            );
+            if (data.success) {
+                // Ensure all numeric values are properly initialized
+                if (data.latestAppointments) {
+                    data.latestAppointments = data.latestAppointments.map(appointment => ({
+                        ...appointment,
+                        amount: Number(appointment.amount || 0),
+                        paidAmount: Number(appointment.paidAmount || 0)
+                    }));
+                }
+                setDashData(data);
+            }
+        } catch (error) {
+            console.log(error);
+            if (error.response?.status === 401) {
+                localStorage.removeItem("aToken");
+                setAToken(null);
+                window.location.href = '/login';
+            }
         }
-    }
+    };
 
-    // Set up axios default header when component mounts and when token changes
-    useEffect(() => {
-        if (aToken) {
-            console.log('Setting auth token:', aToken);
-            updateAxiosHeaders(aToken);
+    // Function to get all appointments
+    const getAllAppointments = async () => {
+        try {
+            const { data } = await axios.get(
+                backendUrl + "/api/admin/get-all-appointments", 
+                { headers: getHeaders() }
+            );
+            if (data.success) {
+                setAppointments(data.appointments);
+            }
+        } catch (error) {
+            console.log(error);
+            if (error.response?.status === 401) {
+                localStorage.removeItem("aToken");
+                setAToken(null);
+                window.location.href = '/login';
+            }
         }
-    }, [aToken]);
+    };
+
+    // Function to get all treatments
+    const getAllTreatments = async () => {
+        try {
+            const { data } = await axios.get(backendUrl + "/api/treatment/list");
+            if (data.success) {
+                setTreatments(data.treatments || []);
+            }
+        } catch (error) {
+            console.log(error);
+            toast.error("Failed to load treatments");
+        }
+    };
+
+    // Function to change treatment availability
+    const changeAvailability = async (treatmentId) => {
+        try {
+            const { data } = await axios.post(
+                backendUrl + "/api/treatment/change-availability",
+                { docId: treatmentId },
+                { headers: getHeaders() }
+            );
+            if (data.success) {
+                toast.success("Availability updated");
+                getAllTreatments();
+                return true;
+            }
+            toast.error(data.message);
+            return false;
+        } catch (error) {
+            console.log(error);
+            toast.error("Failed to update availability");
+            return false;
+        }
+    };
+
+    // Function to delete treatment
+    const deleteTreatment = async (treatmentId) => {
+        try {
+            const { data } = await axios.post(
+                backendUrl + "/api/admin/delete-treatment",
+                { treatmentId },
+                { headers: getHeaders() }
+            );
+            if (data.success) {
+                toast.success("Treatment deleted");
+                getAllTreatments();
+                return true;
+            }
+            toast.error(data.message);
+            return false;
+        } catch (error) {
+            console.log(error);
+            toast.error("Failed to delete treatment");
+            return false;
+        }
+    };
+
+    // Function to cancel appointment
+    const cancelAppointment = async (appointmentId) => {
+        try {
+            const { data } = await axios.post(
+                backendUrl + "/api/admin/cancel-appointment",
+                { appointmentId },
+                { headers: getHeaders() }
+            );
+
+            if (data.success) {
+                toast.success(data.message);
+                getDashData();
+                return true;
+            } else {
+                toast.error(data.message);
+                return false;
+            }
+        } catch (error) {
+            console.log(error);
+            toast.error(error.message);
+            return false;
+        }
+    };
+
+    // Function to complete appointment
+    const completeAppointment = async (appointmentId) => {
+        try {
+            const { data } = await axios.post(
+                backendUrl + "/api/admin/complete-appointment",
+                { appointmentId },
+                { headers: getHeaders() }
+            );
+
+            if (data.success) {
+                toast.success(data.message);
+                getDashData();
+                return true;
+            } else {
+                toast.error(data.message);
+                return false;
+            }
+        } catch (error) {
+            console.log(error);
+            toast.error(error.message);
+            return false;
+        }
+    };
+
+    // Function to delete appointment
+    const deleteAppointment = async (appointmentId) => {
+        try {
+            const { data } = await axios.post(
+                backendUrl + "/api/admin/delete-appointment",
+                { appointmentId },
+                { headers: getHeaders() }
+            );
+
+            if (data.success) {
+                toast.success(data.message);
+                getDashData();
+                return true;
+            } else {
+                toast.error(data.message);
+                return false;
+            }
+        } catch (error) {
+            console.log(error);
+            toast.error(error.message);
+            return false;
+        }
+    };
 
     // Function to accept balance payment
     const acceptBalancePayment = async (appointmentId, paymentMethod) => {
         try {
             const { data } = await axios.post(
-                `${backendUrl}/api/admin/accept-balance`,
-                { appointmentId, paymentMethod }
-            )
+                backendUrl + "/api/admin/accept-balance-payment",
+                { appointmentId, paymentMethod },
+                { headers: getHeaders() }
+            );
+
             if (data.success) {
-                toast.success(data.message)
-                getDashData() // Refresh dashboard data
-                return true
+                toast.success(data.message);
+                getDashData();
+                return true;
             } else {
-                toast.error(data.message)
-                return false
+                toast.error(data.message);
+                return false;
             }
         } catch (error) {
-            toast.error(error.message)
-            console.log(error)
-            return false
+            console.log(error);
+            toast.error(error.message);
+            return false;
         }
-    }
+    };
 
-    // Function to register a user as admin
-    const adminRegisterUser = async (userData) => {
+    // Function to credit user's account
+    const creditUserAccount = async (userId, amount, appointmentId) => {
         try {
+            // Validate amount
+            const creditAmount = Number(amount);
+            if (isNaN(creditAmount) || creditAmount <= 0) {
+                toast.error('Invalid credit amount');
+                return false;
+            }
+
             const { data } = await axios.post(
-                `${backendUrl}/api/admin/register-user`,
-                {
-                    name: userData.name,
-                    phone: userData.phone
-                }
-            )
+                backendUrl + "/api/admin/credit-user-account",
+                { 
+                    userId, 
+                    amount: creditAmount,
+                    appointmentId: appointmentId.toString()
+                },
+                { headers: getHeaders() }
+            );
+
             if (data.success) {
-                toast.success(data.message)
-                return data.userId
+                toast.success(data.message);
+                getDashData();
+                return true;
             } else {
-                toast.error(data.message)
-                return null
+                toast.error(data.message);
+                return false;
             }
         } catch (error) {
-            toast.error(error.message)
-            console.log(error)
-            return null
+            console.error('Credit User Account Error:', error);
+            toast.error(error.response?.data?.message || error.message);
+            return false;
         }
-    }
-
-    // Function to login a user as admin
-    const adminLoginUser = async (phone) => {
-        try {
-            const { data } = await axios.post(
-                `${backendUrl}/api/admin/login-user`,
-                { phone }
-            )
-            if (data.success) {
-                return data.userId
-            } else {
-                toast.error(data.message)
-                return null
-            }
-        } catch (error) {
-            toast.error(error.message)
-            console.log(error)
-            return null
-        }
-    }
-
-    // Function to book appointment with cash/speed point payment
-    const adminBookAppointment = async (appointmentData) => {
-        try {
-            const { data } = await axios.post(
-                `${backendUrl}/api/admin/book-appointment`,
-                appointmentData
-            )
-            if (data.success) {
-                toast.success(data.message)
-                getAllAppointments()
-                return true
-            } else {
-                toast.error(data.message)
-                return false
-            }
-        } catch (error) {
-            toast.error(error.message)
-            console.log(error)
-            return false
-        }
-    }
-
-    // Getting all Treatments data from Database using API
-    const getAllTreatments = async () => {
-        try {
-            const { data } = await axios.get(`${backendUrl}/api/admin/all-treatments`)
-            if (data.success) {
-                setTreatments(data.treatments)
-            } else {
-                toast.error(data.message)
-            }
-        } catch (error) {
-            toast.error(error.message)
-        }
-    }
-
-    // Function to get single treatment data
-    const getTreatment = async (treatmentId) => {
-        try {
-            const { data } = await axios.post(
-                `${backendUrl}/api/admin/get-treatment`,
-                { treatmentId }
-            )
-            if (data.success) {
-                return data.treatment
-            } else {
-                toast.error(data.message)
-                return null
-            }
-        } catch (error) {
-            toast.error(error.message)
-            console.log(error)
-            return null
-        }
-    }
-
-    // Function to update treatment
-    const updateTreatment = async (treatmentData) => {
-        try {
-            const { data } = await axios.post(
-                `${backendUrl}/api/admin/update-treatment`,
-                treatmentData
-            )
-            if (data.success) {
-                toast.success(data.message)
-                getAllTreatments()
-                return true
-            } else {
-                toast.error(data.message)
-                return false
-            }
-        } catch (error) {
-            toast.error(error.message)
-            console.log(error)
-            return false
-        }
-    }
-
-    // Function to change treatment availablity using API
-    const changeAvailability = async (docId) => {
-        try {
-            const { data } = await axios.post(`${backendUrl}/api/admin/change-availability`, { docId })
-            if (data.success) {
-                toast.success(data.message)
-                getAllTreatments()
-            } else {
-                toast.error(data.message)
-            }
-        } catch (error) {
-            console.log(error)
-            toast.error(error.message)
-        }
-    }
-
-    // Function to delete treatment
-    const deleteTreatment = async (treatmentId) => {
-        try {
-            const { data } = await axios.post(`${backendUrl}/api/admin/delete-treatment`, { treatmentId })
-            if (data.success) {
-                toast.success(data.message)
-                getAllTreatments()
-            } else {
-                toast.error(data.message)
-            }
-        } catch (error) {
-            console.log(error)
-            toast.error(error.message)
-        }
-    }
-
-    // Getting all appointment data from Database using API
-    const getAllAppointments = async () => {
-        try {
-            const { data } = await axios.get(`${backendUrl}/api/admin/appointments`)
-            if (data.success) {
-                setAppointments(data.appointments)
-            } else {
-                toast.error(data.message)
-            }
-        } catch (error) {
-            toast.error(error.message)
-        }
-    }
-
-    // Function to cancel appointment using API
-    const cancelAppointment = async (appointmentId) => {
-        try {
-            const { data } = await axios.post(`${backendUrl}/api/admin/cancel-appointment`, { appointmentId })
-            if (data.success) {
-                toast.success(data.message)
-                getAllAppointments()
-            } else {
-                toast.error(data.message)
-            }
-        } catch (error) {
-            toast.error(error.message)
-            console.log(error)
-        }
-    }
-
-    // Function to complete appointment
-    const completeAppointment = async (appointmentId) => {
-        try {
-            const { data } = await axios.post(`${backendUrl}/api/admin/complete-appointment`, { appointmentId })
-            if (data.success) {
-                toast.success(data.message)
-                getAllAppointments()
-            } else {
-                toast.error(data.message)
-            }
-        } catch (error) {
-            console.log(error)
-            toast.error(error.message)
-        }
-    }
-
-    // Function to delete appointment
-    const deleteAppointment = async (appointmentId) => {
-        try {
-            const { data } = await axios.post(`${backendUrl}/api/admin/delete-appointment`, { appointmentId })
-            if (data.success) {
-                toast.success(data.message)
-                getAllAppointments()
-            } else {
-                toast.error(data.message)
-            }
-        } catch (error) {
-            console.log(error)
-            toast.error(error.message)
-        }
-    }
-
-    // Getting Admin Dashboard data from Database using API
-    const getDashData = async () => {
-        try {
-            const { data } = await axios.get(`${backendUrl}/api/admin/dashboard`)
-            if (data.success) {
-                setDashData(data.dashData)
-            } else {
-                toast.error(data.message)
-            }
-        } catch (error) {
-            console.log(error)
-            toast.error(error.message)
-        }
-    }
-
-    const value = {
-        backendUrl,
-        aToken, 
-        setAToken: (token) => {
-            console.log('Setting new token:', token);
-            setAToken(token);
-            updateAxiosHeaders(token);  // Update headers immediately when token changes
-            if (token) {
-                localStorage.setItem('aToken', token);
-            } else {
-                localStorage.removeItem('aToken');
-            }
-        },
-        treatments,
-        getAllTreatments,
-        getTreatment,
-        updateTreatment,
-        changeAvailability,
-        deleteTreatment,
-        appointments,
-        getAllAppointments,
-        getDashData,
-        cancelAppointment,
-        completeAppointment,
-        deleteAppointment,
-        dashData,
-        adminRegisterUser,
-        adminLoginUser,
-        adminBookAppointment,
-        acceptBalancePayment
-    }
+    };
 
     return (
-        <AdminContext.Provider value={value}>
-            {props.children}
+        <AdminContext.Provider value={{
+            aToken,
+            setAToken,
+            dashData,
+            appointments,
+            treatments,
+            getDashData,
+            getAllAppointments,
+            getAllTreatments,
+            changeAvailability,
+            deleteTreatment,
+            cancelAppointment,
+            completeAppointment,
+            deleteAppointment,
+            acceptBalancePayment,
+            creditUserAccount
+        }}>
+            {children}
         </AdminContext.Provider>
-    )
-}
+    );
+};
 
-export default AdminContextProvider
+export default AdminContextProvider;
